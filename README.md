@@ -13,7 +13,9 @@
 ## Files
 * main.py
 * db_interface.py - holds all the functions for interfacing with the database
-    * start_database()
+    * create_new_database() 
+    * start_database(username, user_password, host_address, db_name)
+    * close_database(cnx)
     * create_new_report()
     * edit_reports(report)
     * view_reports(report)
@@ -29,3 +31,8 @@
     * edit_ref_charts(ref_chart)
 
 * README.md
+
+## Reference
+* MySQL Connector, the Python/MySQL interface: https://dev.mysql.com/doc/connector-python/en/
+       * Guidelines: https://dev.mysql.com/doc/connector-python/en/connector-python-coding.html 
+       * W3 resource: https://www.w3schools.com/python/python_mysql_getstarted.asp 

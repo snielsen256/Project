@@ -18,5 +18,11 @@ def main():
     
     pass
 
+def configure_login():
+    """
+    Builds the config.py file, containing login information for the database.
+    """
+    pass
+
 if __name__ == '__main__':
     pass
