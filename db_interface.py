@@ -5,17 +5,7 @@ Holds all the functions for interfacing with the database
 
 import mysql.connector
 from mysql.connector import errorcode
-from config import config
-"""
-Config should be in the format:
-    config = {
-    'user': '',
-    'password': '',
-    'host': 'localhost',
-    'database': 'supplicore',
-    'raise_on_warnings': True
-    }
-"""
+import json   
 
 # General -----------------------------
 def create_new_database(config):
@@ -29,7 +19,11 @@ def create_new_database(config):
     pass
 
     # define database
-    cnx = start_database(**config)
+    cnx = mysql.connector.connect(
+        host=config["host"],
+        user=config["user"],
+        password=config["password"]
+        )
     cursor1 = cnx.cursor()
     cursor1.execute(
         f"""
@@ -228,9 +222,6 @@ def create_new_database(config):
         )
     cnx.close()
     
-    
-    
-    
 def start_database(config):
     """
     Establishes a connection to the database.
@@ -258,48 +249,104 @@ def start_database(config):
 def close_database(cnx):
     cnx.close()
 
+# Database login
+def configure_login():
+    """
+    Builds the config.py file, containing login information for the database.
+    """
+    pass
+    #TODO
+
+def load_config():
+    """
+    Loads login information from config.json
+    Parameters: none
+    Returns: config: dict
+    """
+
+    with open('config.json') as json_file:
+        config = json.load(json_file)
+    
+    return config
+
+# CRUD functions
+resources = {
+    "reports": {},
+    "patients": {},
+    "nutrients": {},
+    "supplements": {},
+    "medications": {},
+    "reference_charts": {}
+}
+# Create
+def create(item):
+    pass
+
+# Read
+def read(item):
+    pass
+
+# Update
+
+# Delete
+
+
+
 # Reports -----------------------------
 def create_new_report():
     pass
+    #TODO
     
 def edit_reports(report):
     pass
+    #TODO
     
 def view_reports(report):
     pass
+    #TODO
 
 # Patients ----------------------------    
 def create_new_patient():
     pass
+    #TODO
     
 def edit_patients(patient):
     pass
+    #TODO
 
 # Nutrients ---------------------------
 def create_new_nutrient():
     pass
+    #TODO
     
 def edit_nutrients(nutrient):
     pass
+    #TODO
 
 # Supplements -------------------------    
 def create_new_supplement():
     pass
+    #TODO
     
 def edit_supplements(supplement):
     pass
+    #TODO
 
 # Medications -------------------------    
 def create_new_medication():
     pass
+    #TODO
     
 def edit_medications(medication):
     pass
+    #TODO
 
 # Reference charts --------------------    
 def create_new_ref_chart():
     pass
+    #TODO
     
 def edit_ref_charts(ref_chart):
     pass
+    #TODO
     

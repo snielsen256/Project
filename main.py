@@ -11,18 +11,17 @@ $> pip install mysql-connector-python --upgrade
 
 """
 
+from db_interface import *
+
+
 def main():
 
 
     # start database if not already started
+    config = load_config()
     
     pass
 
-def configure_login():
-    """
-    Builds the config.py file, containing login information for the database.
-    """
-    pass
 
 if __name__ == '__main__':
     pass
