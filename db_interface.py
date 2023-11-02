@@ -5,25 +5,21 @@ Holds all the functions for interfacing with the database
 
 import mysql.connector
 from mysql.connector import errorcode
-import json   
+import json
 
 # General -----------------------------
 def create_new_database(config):
     """
     Creates a new database
-    Parameters:
-        * config: dict
-    Returns: none
+    * Parameters:
+           * config: dict
+    * Returns: none
     """
     # Make sure that MySQL is installed
     pass
 
     # define database
-    cnx = mysql.connector.connect(
-        host=config["host"],
-        user=config["user"],
-        password=config["password"]
-        )
+    cnx = mysql.connector.connect(**config)
     cursor1 = cnx.cursor()
     cursor1.execute(
         f"""
@@ -220,33 +216,52 @@ def create_new_database(config):
         SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
         """
         )
+    cnx.commit()
     cnx.close()
-    
+
 def start_database(config):
     """
-    Establishes a connection to the database.
+    Starts the database. Requires the server be started.
 
-    Parameters:
-        * config: dict
-    Returns: 
-        * cnx - the connection to the database
+    * Parameters:
+           * config: dict
+    * Returns: 
+           * cnx - the connection to the database
     """
 
+    cnx = None
+
+    # start database
     try:
         cnx = mysql.connector.connect(**config)
+        print("Success")
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("Something is wrong with your user name or password")
         elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            print("Database does not exist")
+            user_input = input("Database does not exist. Create new? (y/n): ")
+            if user_input[:1].lower() == "y":
+                create_new_database(cnx)
+                print("Creating database")
+            else:
+                print(":(")
         else:
-            print(err)
+            print(str(err) + "000")
     else:
         cnx.close()
-    
+        print("Closed")
+    print("over")
     return cnx
     
 def close_database(cnx):
+    """
+    Establishes a connection to the database.
+
+    * Parameters:
+           * cnx - the connection to the database
+    * Returns: none
+    """
+    # close connection to database
     cnx.close()
 
 # Database login
@@ -260,8 +275,9 @@ def configure_login():
 def load_config():
     """
     Loads login information from config.json
-    Parameters: none
-    Returns: config: dict
+    * Parameters: none
+    * Returns: 
+           * config: dict
     """
 
     with open('config.json') as json_file:
