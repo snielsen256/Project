@@ -6,6 +6,7 @@ Holds all the functions for interfacing with the database
 import mysql.connector
 from mysql.connector import errorcode
 import json
+import pandas as pd
 
 # General -----------------------------
 def create_new_database(config):
@@ -248,20 +249,41 @@ def start_database(config):
         else:
             print(str(err) + "000")
     else:
-        cnx.close()
-        print("Closed")
-    print("over")
-    return cnx
-    
+        return cnx
+
+def commit_db_changes(cnx):
+    """
+    Commits changes to the database.
+
+    * Parameters:
+           * cnx - the connection to the database
+    * Returns: none
+    """
+    user_input = input("Are you sure you want to commit these changes? (y/n):")
+    if user_input[:1].lower() == "y":
+        cnx.commit()
+        print("Changes committed.")
+    else:
+        print("Not committed.")
+
 def close_database(cnx):
     """
-    Establishes a connection to the database.
+    Closes the connection to the database.
 
     * Parameters:
            * cnx - the connection to the database
     * Returns: none
     """
     # close connection to database
+    """
+    user_input = input("Are you sure you want to close the database? (y/n):")
+    if user_input[:1].lower() == "y":
+        cnx.close()
+        print("Database closed.")
+    else:
+        print("The database remains open.")
+    """
+    
     cnx.close()
 
 # Database login
@@ -286,83 +308,96 @@ def load_config():
     return config
 
 # CRUD functions
-resources = {
-    "reports": {},
-    "patients": {},
-    "nutrients": {},
-    "supplements": {},
-    "medications": {},
-    "reference_charts": {}
-}
 # Create
-def create(item):
+def create(Table_name: str, content: dict):
+    """
+    Creates a new entry in a table.
+    """
     pass
 
 # Read
-def read(item):
-    pass
+def read(cnx, table_name:str, select:str = "*"):
+    """
+    Returns a table's contents
+    * Parameters:
+           * cnx - the connection to the database
+           * table_name: str 
+           * select: str - the MySQL SELECT statement
+    * Returns: 
+           * DataFrame - the result of the query
+    """
+    query = (f"""
+        SELECT 
+             {select}
+        FROM 
+             {table_name};
+        """)
+    
+    query_result = pd.read_sql(query, cnx)
+    return query_result
+
+def get_table_names(cnx, config):
+    """
+    Gets the table names, excluding connective tables.
+
+    * Parameters:
+           * cnx - the connection to the database
+           * config - login information
+    * Returns: 
+           * DataFrame - the result of the query
+    """
+
+    query = (f"""
+        SELECT 
+             table_name
+        FROM 
+             information_schema.tables
+        WHERE 
+             table_schema = '{config['database']}'
+             AND table_name NOT LIKE "%has%";
+        """)
+    
+    query_result = pd.read_sql(query, cnx)
+    return query_result
+
+def content_interface(cnx, config):
+    """
+    Guides the user through finding table content
+
+    * Parameters:
+           * cnx - the connection to the database
+           * config - login information
+    * Returns: 
+           * DataFrame - the table contents
+    """
+    table_names = get_table_names(cnx, config)
+                
+    # display table names
+    for table_index in table_names.index:
+        print(str(table_index+1) + ": " + str(table_names['TABLE_NAME'][table_index]))
+                
+    # choose a table to view
+    print()
+    num_tables = len(table_names)
+    user_input = input(f"There are {num_tables} tables. Which one do you want to access? (1-{num_tables}): ")
+                
+    try:
+        user_input = int(user_input)-1
+    except:
+        print("Invalid input.")
+        return 0
+
+    try:
+        user_input >= 0
+        user_input <= num_tables-1
+    except:
+        print("Input is out of range")
+        return 0
+
+    # show table contents
+    return table_names['TABLE_NAME'][user_input]
 
 # Update
 
 # Delete
-
-
-
-# Reports -----------------------------
-def create_new_report():
-    pass
-    #TODO
-    
-def edit_reports(report):
-    pass
-    #TODO
-    
-def view_reports(report):
-    pass
-    #TODO
-
-# Patients ----------------------------    
-def create_new_patient():
-    pass
-    #TODO
-    
-def edit_patients(patient):
-    pass
-    #TODO
-
-# Nutrients ---------------------------
-def create_new_nutrient():
-    pass
-    #TODO
-    
-def edit_nutrients(nutrient):
-    pass
-    #TODO
-
-# Supplements -------------------------    
-def create_new_supplement():
-    pass
-    #TODO
-    
-def edit_supplements(supplement):
-    pass
-    #TODO
-
-# Medications -------------------------    
-def create_new_medication():
-    pass
-    #TODO
-    
-def edit_medications(medication):
-    pass
-    #TODO
-
-# Reference charts --------------------    
-def create_new_ref_chart():
-    pass
-    #TODO
-    
-def edit_ref_charts(ref_chart):
-    pass
-    #TODO
     
