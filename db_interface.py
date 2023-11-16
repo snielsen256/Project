@@ -346,13 +346,14 @@ def create(cnx, table_name: str, content: dict):
     cursor1.execute(query)
     commit_db_changes(cnx)
 
-def read(cnx, table_name:str, select:str = "*"):
+def read(cnx, table_name:str, select:str = "*", where:str = "*"):
     """
     CRUD function. Returns a table's contents
     * Parameters:
            * cnx - the connection to the database
            * table_name: str 
            * select: str - the MySQL SELECT statement
+           * where: str - the MySQL WHERE statement
     * Returns: 
            * DataFrame - the result of the query
     """
@@ -360,9 +361,16 @@ def read(cnx, table_name:str, select:str = "*"):
         SELECT 
              {select}
         FROM 
-             {table_name};
+             {table_name}
         """)
     
+    # add where statement if relevant
+    if where != "*":
+        query = query + f"WHERE {where}"
+    
+    query = query + ";"
+
+    # return
     query_result = pd.read_sql(query, cnx)
     return query_result
 
