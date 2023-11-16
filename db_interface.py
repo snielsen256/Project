@@ -7,8 +7,22 @@ import mysql.connector
 from mysql.connector import errorcode
 import json
 import pandas as pd
+import warnings
 
-# General -----------------------------
+# General ----------------------------
+def raw_sql(cnx, query:str):
+    """
+    Runs MySQL code
+    * Parameters:
+           * cnx - the connection to the database
+           * query:str - the MySQL code
+    * Returns: 
+           * DataFrame - the result of the query
+    """
+    query_result = pd.read_sql(query, cnx)
+    return query_result
+
+# Database management -----------------------------
 def create_new_database(config):
     """
     Creates a new database
@@ -286,7 +300,7 @@ def close_database(cnx):
     
     cnx.close()
 
-# Database login
+# Database login -------------------------
 def configure_login():
     """
     Builds the config.py file, containing login information for the database.
@@ -307,18 +321,34 @@ def load_config():
     
     return config
 
-# CRUD functions
-# Create
-def create(Table_name: str, content: dict):
+# CRUD functions ------------------------
+def create(cnx, table_name: str, content: dict):
     """
-    Creates a new entry in a table.
+    CRUD function. Creates a new entry in a table.
+    * Parameters:
+           * cnx - the connection to the database
+           * table_name: str 
+           * content: dict - contains the column names as keys, and the column content as values.
+    * Returns: none
     """
-    pass
 
-# Read
+    # define query
+    col_names, col_values = dict_to_strings_Create(content)
+
+    query = (f"""
+        INSERT INTO {table_name} {col_names} 
+        VALUES {col_values}
+        """)
+    
+    # cursor
+    #print(query)
+    cursor1 = cnx.cursor()
+    cursor1.execute(query)
+    commit_db_changes(cnx)
+
 def read(cnx, table_name:str, select:str = "*"):
     """
-    Returns a table's contents
+    CRUD function. Returns a table's contents
     * Parameters:
            * cnx - the connection to the database
            * table_name: str 
@@ -336,6 +366,62 @@ def read(cnx, table_name:str, select:str = "*"):
     query_result = pd.read_sql(query, cnx)
     return query_result
 
+def update(cnx, table_name: str, id: int, content: dict):
+    """
+    CRUD function. Updates an entry in a table.
+    * Parameters:
+           * cnx - the connection to the database
+           * table_name: str 
+           * id: int - the id of the entry to update (The primary key, the "{table_name}_id" value)
+           * content: dict - the values to replace. Dict keys are column names, dict values are the replacement values.
+    * Returns: none
+    """
+    # check for empty table
+    if id == -1:
+        return
+    
+    # convert dict to string
+    set_statement = dict_to_string_Update(content)
+
+    # define query
+    query = (f"""
+        UPDATE {table_name} 
+        SET {set_statement} 
+        WHERE {table_name}_id = {id};
+        """)
+    
+    # cursor
+    #print(query)
+    cursor1 = cnx.cursor()
+    cursor1.execute(query)
+    commit_db_changes(cnx)
+
+def delete(cnx, table_name: str, id: int):
+    """
+    CRUD function. Deletes an entry in a table.
+    * Parameters:
+           * cnx - the connection to the database
+           * table_name: str 
+           * id: int - the id of the entry to delete (The primary key, the "{table_name}_id" value)
+    * Returns: none
+    """
+    # check for empty table
+    if id == -1:
+        return
+
+    # define query
+    query = (f"""
+        DELETE FROM {table_name} 
+        WHERE {table_name}_id = {id};
+        """)
+    
+    # cursor
+    #print(query)
+    cursor1 = cnx.cursor()
+    cursor1.execute(query)
+    commit_db_changes(cnx)
+
+# Supporting functions ------------------------------
 def get_table_names(cnx, config):
     """
     Gets the table names, excluding connective tables.
@@ -347,6 +433,7 @@ def get_table_names(cnx, config):
            * DataFrame - the result of the query
     """
 
+    # define query
     query = (f"""
         SELECT 
              table_name
@@ -357,10 +444,13 @@ def get_table_names(cnx, config):
              AND table_name NOT LIKE "%has%";
         """)
     
+    # query the database
+    warnings.filterwarnings('ignore')
+
     query_result = pd.read_sql(query, cnx)
     return query_result
 
-def content_interface(cnx, config):
+def get_table_names_interface(cnx, config):
     """
     Guides the user through finding table content
 
@@ -383,21 +473,109 @@ def content_interface(cnx, config):
                 
     try:
         user_input = int(user_input)-1
-    except:
-        print("Invalid input.")
-        return 0
-
-    try:
         user_input >= 0
         user_input <= num_tables-1
     except:
-        print("Input is out of range")
+        print("Invalid input.")
         return 0
 
     # show table contents
     return table_names['TABLE_NAME'][user_input]
 
-# Update
+def get_table_items_interface(cnx, table_name):
+    """
+    Guides the user through selecting an item from a table
 
-# Delete
+    * Parameters:
+           * cnx - the connection to the database
+           * table_name: str 
+    * Returns: 
+           * int - the primary key for the item
+    """
+    warnings.filterwarnings('ignore')
     
+    # get table content
+    table_content = read(cnx, table_name)
+
+    if table_content.empty:
+        print("Table is empty")
+        return -1
+
+    # display table names
+    print(f"Contents of {table_name} table:")
+    for item_index in table_content.index:
+        print(str(table_content[f'{table_name}_id'][item_index]) + ": " + str(table_content[f'name'][item_index]))
+                
+    # choose a table to view
+    print()
+    num_items = len(table_content)
+    user_input = input(f"There are {num_items} items. Which one do you want to access? (Enter id): ")
+                
+    try:
+        user_input = int(user_input)
+        user_input in table_content[f'{table_name}_id']
+    except:
+        print("Invalid input.")
+        return 0
+
+    # return the chosen index
+    return user_input
+
+def dict_to_strings_Create(content: dict):
+    """
+    Converts a dict into two strings, containing the keys and values. Makes it easier to insert content into queries.
+    * Parameters:
+           * content: dict - contains the column names as keys, and the column content as values.
+    * Returns: 
+           * col_names: str - dict key values in format "(name1, name2, name3)"
+           * col_values: str - dict values in format "(item1, item2, item3)"
+    """
+    col_names = "("
+    col_values = "("
+
+    # fill strings
+    for key in content:
+        col_names = col_names + key + ", "
+
+        if isinstance(content[key], str):
+            col_values = col_values + "'" + content[key] + "', "
+        else:
+            col_values = col_values + str(content[key]) + ", "
+
+    # get rid of comma+space at end of strings
+    col_names = col_names[:-2]
+    col_values = col_values[:-2]
+
+    # add closing parentheses 
+    col_names = col_names + ")"
+    col_values = col_values + ")"
+
+    # return
+    return col_names, col_values
+
+def dict_to_string_Update(content: dict):
+    """
+    Converts a dict into a string for the SET in an Update statement.
+    * Parameters:
+           * content: dict - contains the column names as keys, and the column content as values.
+    * Returns: 
+           * str - format "key1 = value1, key2 = value2" etc.
+    """
+    final_str = ""
+
+    # fill strings
+    for key in content:
+        # add key
+        final_str = final_str + key + " = "
+
+        # add value
+        if isinstance(content[key], str):
+            final_str = final_str + "'" + content[key] + "', "
+        else:
+            final_str = final_str + str(content[key]) + ", "
+
+    # get rid of comma+space at end of strings
+    final_str = final_str[:-2]
+
+    # return
+    return final_str
