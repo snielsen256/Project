@@ -357,6 +357,8 @@ def read(cnx, table_name:str, select:str = "*", where:str = "*"):
     * Returns: 
            * DataFrame - the result of the query
     """
+    warnings.filterwarnings('ignore')
+    
     query = (f"""
         SELECT 
              {select}
@@ -384,6 +386,12 @@ def update(cnx, table_name: str, id: int, content: dict):
            * content: dict - the values to replace. Dict keys are column names, dict values are the replacement values.
     * Returns: none
     """
+    # determine the name of the primary key
+    p_key_name = f'{table_name}_id'
+
+    if table_name == "Patients":
+        p_key_name = "MRN"
+
     # check for empty table
     if id == -1:
         return
@@ -395,7 +403,7 @@ def update(cnx, table_name: str, id: int, content: dict):
     query = (f"""
         UPDATE {table_name} 
         SET {set_statement} 
-        WHERE {table_name}_id = {id};
+        WHERE {p_key_name} = {id};
         """)
     
     # cursor
@@ -413,6 +421,12 @@ def delete(cnx, table_name: str, id: int):
            * id: int - the id of the entry to delete (The primary key, the "{table_name}_id" value)
     * Returns: none
     """
+    # determine the name of the primary key
+    p_key_name = f'{table_name}_id'
+
+    if table_name == "Patients":
+        p_key_name = "MRN"
+
     # check for empty table
     if id == -1:
         return
@@ -420,7 +434,7 @@ def delete(cnx, table_name: str, id: int):
     # define query
     query = (f"""
         DELETE FROM {table_name} 
-        WHERE {table_name}_id = {id};
+        WHERE {p_key_name} = {id};
         """)
     
     # cursor
@@ -466,7 +480,7 @@ def get_table_names_interface(cnx, config):
            * cnx - the connection to the database
            * config - login information
     * Returns: 
-           * DataFrame - the table contents
+           * str - the table name
     """
     table_names = get_table_names(cnx, config)
                 
@@ -492,15 +506,22 @@ def get_table_names_interface(cnx, config):
 
 def get_table_items_interface(cnx, table_name):
     """
-    Guides the user through selecting an item from a table
+    Guides the user through selecting an item from a table.
+    Made to be used with get_table_names_interface()
 
     * Parameters:
            * cnx - the connection to the database
-           * table_name: str 
+           * table_name: str (can get this with get_table_names_interface())
     * Returns: 
            * int - the primary key for the item
     """
     warnings.filterwarnings('ignore')
+
+    # determine the name of the primary key
+    p_key_name = f'{table_name}_id'
+
+    if table_name == "Patients":
+        p_key_name = "MRN"
     
     # get table content
     table_content = read(cnx, table_name)
@@ -509,26 +530,40 @@ def get_table_items_interface(cnx, table_name):
         print("Table is empty")
         return -1
 
-    # display table names
+    # display items
     print(f"Contents of {table_name} table:")
     for item_index in table_content.index:
-        print(str(table_content[f'{table_name}_id'][item_index]) + ": " + str(table_content[f'name'][item_index]))
+        print(str(table_content.loc[[item_index]]))
                 
-    # choose a table to view
+    # choose an item to view
     print()
     num_items = len(table_content)
     user_input = input(f"There are {num_items} items. Which one do you want to access? (Enter id): ")
-                
+
+    # make sure the user input is one of the primary keys          
     try:
         user_input = int(user_input)
-        user_input in table_content[f'{table_name}_id']
+        result = table_content[f'{p_key_name}'][user_input]
     except:
         print("Invalid input.")
         return 0
+    
+    # return the primary key
+    return result
 
-    # return the chosen index
-    return user_input
+def fill_table_interface(cnx, table_name: str):
+    """
+    Walks the user through filling an entry for a table.
+    * Parameters:
+           * cnx - the connection to the database
+           * table_name: str 
+    * Returns: 
+           * dict - The content of the entry
+    """
 
+    data = read(cnx, table_name)
+    # TODO
+    
 def dict_to_strings_Create(content: dict):
     """
     Converts a dict into two strings, containing the keys and values. Makes it easier to insert content into queries.

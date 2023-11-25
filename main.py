@@ -11,11 +11,33 @@ $> pip install mysql-connector-python --upgrade
 
 """
 from db_interface import *
+import datetime
 
-test_tablename = "Supplements"
-test_dict = {"name":"triopenin", "kcal":100.0, "displacement":50.0, "notes":"Not for human consumption"}
-test_dict_2 = {"name":"canopenin", "kcal":1000.0, "displacement":5.0, "notes":"Totally safe for human consumption bro"}
+date_format = "%Y-%m-%d"
 
+def test_fill(cnx):
+    """
+    fills the database with test data. For testing purposes only.
+    """
+    
+    test_tablename = "Supplements"
+    test_dict = {"name":"triopenin", "kcal":100.0, "displacement":50.0, "notes":"Not for human consumption"}
+    test_dict_2 = {"name":"canopenin", "kcal":1000.0, "displacement":5.0, "notes":"Totally safe for human consumption bro"}
+    test_tablename_2 = "Patients"
+
+    test_condition = {"name": "big sad"}
+
+    test_patient = {
+        "MRN": 123456, 
+        "f_name": "John", 
+        "l_name": "Doe", 
+        "DOB": datetime.datetime(2000, 1, 1).strftime(date_format), 
+        "weight_kg": 1000.0,
+        "Medical_conditions_id": 1
+        }
+    
+    #create(cnx, "Medical_conditions", test_condition)
+    create(cnx, "Patients", test_patient)
 
 def main():
     # Load config (login information)
@@ -42,31 +64,31 @@ def main():
         
         # choice
         match user_input:
-            case 1:
-                #if exit
+            case 1:#if exit
                 print("Exiting")
                 in_main_loop = False
                 break
-            case 2:
-                # if create
-                create(cnx, test_tablename, test_dict)
-            case 3:
-                # if read
-                returned = read(cnx, get_table_names_interface(cnx, config), where=f"{test_tablename}_id = 5")
+            case 2:# if create
+                test_fill(cnx)
+            case 3:# if read
+                returned = read(cnx, get_table_names_interface(cnx, config))
                 if returned.empty:
                     print("Table is empty")
                 else:
                     print(returned)
-            case 4:
-                # if update
-                update(cnx, test_tablename, get_table_items_interface(cnx, test_tablename), test_dict_2)
-            case 5:
-                # if delete
-                delete(cnx, test_tablename, get_table_items_interface(cnx, test_tablename))
-            case 6:
-                generate_report()
-            case _:
-                # else
+            case 4:# if update
+                pass
+                #update(cnx, test_tablename, get_table_items_interface(cnx, test_tablename), test_dict_2)
+            case 5:# if delete
+                pass
+                #delete(cnx, test_tablename, get_table_items_interface(cnx, test_tablename))
+            case 6:# if generate report
+                #print(get_table_items_interface(cnx, "Patients"))
+                patient_MRN = get_table_items_interface(cnx, "Patients")
+                print(patient_MRN)
+                #report = generate_report(cnx, patient_MRN)
+                #print(report)
+            case _:# else
                 print("Invalid input.")
                 continue
 
@@ -78,12 +100,14 @@ def main():
     # end program
     print("TERMINATED")
     
-def generate_report():
+def generate_report(cnx, patient_MRN: int):
     """
     creates a report
-    * Parameters:none
+    * Parameters:
+           * cnx - the connection to the database
+           * patient_MRN: int - The MRN, used to identify the patient
     * Returns: 
-           * report: json
+           * report: dict
     """
     report = {
         "header": {
@@ -113,7 +137,10 @@ def generate_report():
         }
     }
 
-    # TODO import patient data
+    # import patient data, convert to dictionary
+    patient_data = read(cnx, "Patients", where=f"MRN = {patient_MRN}").to_dict()
+    for key in patient_data:
+        patient_data[key] = patient_data[key][0]
 
     # calculate Holliday-Segar formula
     hs = 0.0
@@ -152,7 +179,10 @@ def generate_report():
         print(f"Unknown sex '{sex}'")
     
     report["calculations"]["WHO_REE"] = wr
-    
+
+    # return
+    return report
+
 
 
 if __name__ == '__main__':
