@@ -11,7 +11,8 @@ $> pip install mysql-connector-python --upgrade
 
 """
 from db_interface import *
-import datetime
+import datetime as dt
+from datetime import datetime
 
 date_format = "%Y-%m-%d"
 
@@ -31,13 +32,16 @@ def test_fill(cnx):
         "MRN": 123456, 
         "f_name": "John", 
         "l_name": "Doe", 
-        "DOB": datetime.datetime(2000, 1, 1).strftime(date_format), 
+        "sex": "M",
+        "DOB": dt.datetime(2000, 1, 1).strftime(date_format), 
         "weight_kg": 1000.0,
         "Medical_conditions_id": 1
         }
     
-    #create(cnx, "Medical_conditions", test_condition)
+    create(cnx, "Medical_conditions", test_condition)
+    cnx.commit()
     create(cnx, "Patients", test_patient)
+    cnx.commit()
 
 def main():
     # Load config (login information)
@@ -80,14 +84,20 @@ def main():
                 pass
                 #update(cnx, test_tablename, get_table_items_interface(cnx, test_tablename), test_dict_2)
             case 5:# if delete
-                pass
-                #delete(cnx, test_tablename, get_table_items_interface(cnx, test_tablename))
+                tablename = get_table_names_interface(cnx, config)
+                item_id = get_table_items_interface(cnx, tablename)
+                if item_id == 0:
+                    continue
+                delete(cnx, tablename, item_id)
             case 6:# if generate report
-                #print(get_table_items_interface(cnx, "Patients"))
                 patient_MRN = get_table_items_interface(cnx, "Patients")
-                print(patient_MRN)
-                #report = generate_report(cnx, patient_MRN)
-                #print(report)
+                report = generate_report(cnx, patient_MRN)
+                print(report)
+                user_input = input("Would you like to save this report? (y/n): ")
+                if user_input[:1].lower() == "y":
+                    save_report(report)
+                else:
+                    print("Not saved.")
             case _:# else
                 print("Invalid input.")
                 continue
@@ -113,6 +123,7 @@ def generate_report(cnx, patient_MRN: int):
         "header": {
             "name": "",
             "sex": "",
+            "MRN": "",
             "DOB": "",
             "age": 0.0,
             "weight_kg": 0.0,
@@ -137,11 +148,30 @@ def generate_report(cnx, patient_MRN: int):
         }
     }
 
-    # import patient data, convert to dictionary
+    # import patient data, convert to dictionary-------
     patient_data = read(cnx, "Patients", where=f"MRN = {patient_MRN}").to_dict()
     for key in patient_data:
         patient_data[key] = patient_data[key][0]
+    
+    # fill report with known data--------------------
+    for key in ["MRN", "DOB", "sex", "weight_kg"]:
+        report["header"][key] = patient_data[key]
+    
+    report["header"]["DOB"] = dt.datetime.strftime(report["header"]["DOB"], date_format)
+    
+    if patient_data["m_name"] == None:
+        report["header"]["name"] = f"{patient_data['l_name']}, {patient_data['f_name']}"
+    else:
+        report["header"]["name"] = f"{patient_data['l_name']}, {patient_data['f_name']} {patient_data['m_name']}"
 
+    # find secondary data---------------------------
+    # current date
+    report["header"]["current_date"] = datetime.now().strftime(date_format)
+    # age
+    curr_date = dt.datetime.strptime(report["header"]["current_date"], date_format)
+    DOB = dt.datetime.strptime(report["header"]["DOB"], date_format)
+    report["header"]["age"] = (curr_date.year - DOB.year)
+    
     # calculate Holliday-Segar formula
     hs = 0.0
     weight = report["header"]["weight_kg"]
@@ -180,10 +210,23 @@ def generate_report(cnx, patient_MRN: int):
     
     report["calculations"]["WHO_REE"] = wr
 
-    # return
+    # return---------------------------------
     return report
 
+def save_report(report: dict):
+    """
+    Saves a report as a JSON file
+    * Parameters:
+           * report: dict - The report, as outputted by generate_report()
+    * Returns: None 
+    """
 
+    filename = f"{report['header']['MRN']}-({report['header']['current_date']}).json"
+
+    with open(filename, "w") as file: 
+        json.dump(report, file)
+
+    print(f"Saved as {filename}")
 
 if __name__ == '__main__':
     main()
