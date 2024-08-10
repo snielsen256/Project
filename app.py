@@ -95,7 +95,7 @@ def main():
                 print(report)
                 user_input = input("Would you like to save this report? (y/n): ")
                 if user_input[:1].lower() == "y":
-                    save_report(report)
+                    save_report_JSON(report)
                 else:
                     print("Not saved.")
             case _:# else
@@ -213,7 +213,7 @@ def generate_report(cnx, patient_MRN: int):
     # return---------------------------------
     return report
 
-def save_report(report: dict):
+def save_report_JSON(report: dict):
     """
     Saves a report as a JSON file
     * Parameters:

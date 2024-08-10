@@ -22,3 +22,6 @@
 * Medical calculations
        * Holliday-Segar: https://www.msdmanuals.com/professional/multimedia/table/holliday-segar-formula-for-maintenance-fluid-requirements-by-weight 
        * WHO REE: http://www.nafwa.org/who_equation.html 
+* Saving as PDF
+       * https://stackoverflow.com/questions/66269130/how-to-use-python-to-save-dict-as-a-table-in-pdf-with-cell-coloring 
+       * https://prog.world/create-pdf-document-in-python-using-ptext/
