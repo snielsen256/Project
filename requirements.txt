@@ -3,3 +3,5 @@ datetime
 flask
 requests
 mysql-connector-python
+pandas
+mysql-connector-python
