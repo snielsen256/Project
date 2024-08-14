@@ -5,19 +5,19 @@ SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
 -- -----------------------------------------------------
--- Schema mydb
+-- Schema supplicore_db
 -- -----------------------------------------------------
 
 -- -----------------------------------------------------
--- Schema mydb
+-- Schema supplicore_db
 -- -----------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS `mydb` DEFAULT CHARACTER SET utf8 ;
-USE `mydb` ;
+CREATE SCHEMA IF NOT EXISTS `supplicore_db` DEFAULT CHARACTER SET utf8 ;
+USE `supplicore_db` ;
 
 -- -----------------------------------------------------
--- Table `mydb`.`Medical_conditions`
+-- Table `supplicore_db`.`Medical_conditions`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Medical_conditions` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Medical_conditions` (
   `Medical_conditions_id` VARCHAR(45) NOT NULL,
   `name` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`Medical_conditions_id`))
@@ -25,9 +25,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Supplements`
+-- Table `supplicore_db`.`Supplements`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Supplements` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Supplements` (
   `Supplements_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   `kcal` FLOAT NOT NULL,
@@ -38,9 +38,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Nutrients`
+-- Table `supplicore_db`.`Nutrients`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Nutrients` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Nutrients` (
   `Nutrients_id` INT NOT NULL,
   `name` VARCHAR(45) NOT NULL,
   `units` ENUM("g", "mg") NOT NULL,
@@ -50,9 +50,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Patients`
+-- Table `supplicore_db`.`Patients`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Patients` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Patients` (
   `MRN` INT NOT NULL,
   `f_name` VARCHAR(45) NOT NULL,
   `m_name` VARCHAR(45) NULL,
@@ -66,16 +66,16 @@ CREATE TABLE IF NOT EXISTS `mydb`.`Patients` (
   INDEX `fk_Patients_Medical_conditions1_idx` (`Medical_conditions_id` ASC) VISIBLE,
   CONSTRAINT `fk_Patients_Medical_conditions1`
     FOREIGN KEY (`Medical_conditions_id`)
-    REFERENCES `mydb`.`Medical_conditions` (`Medical_conditions_id`)
+    REFERENCES `supplicore_db`.`Medical_conditions` (`Medical_conditions_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Supplements_has_Nutrients`
+-- Table `supplicore_db`.`Supplements_has_Nutrients`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Supplements_has_Nutrients` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Supplements_has_Nutrients` (
   `Supplements_id` INT NOT NULL,
   `Nutrients_id` INT NOT NULL,
   PRIMARY KEY (`Supplements_id`, `Nutrients_id`),
@@ -83,21 +83,21 @@ CREATE TABLE IF NOT EXISTS `mydb`.`Supplements_has_Nutrients` (
   INDEX `fk_Supplements_has_Nutrients_Supplements_idx` (`Supplements_id` ASC) VISIBLE,
   CONSTRAINT `fk_Supplements_has_Nutrients_Supplements`
     FOREIGN KEY (`Supplements_id`)
-    REFERENCES `mydb`.`Supplements` (`Supplements_id`)
+    REFERENCES `supplicore_db`.`Supplements` (`Supplements_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_Supplements_has_Nutrients_Nutrients1`
     FOREIGN KEY (`Nutrients_id`)
-    REFERENCES `mydb`.`Nutrients` (`Nutrients_id`)
+    REFERENCES `supplicore_db`.`Nutrients` (`Nutrients_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Medical_conditions_has_Nutrients`
+-- Table `supplicore_db`.`Medical_conditions_has_Nutrients`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Medical_conditions_has_Nutrients` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Medical_conditions_has_Nutrients` (
   `Medical_conditions_id` VARCHAR(45) NOT NULL,
   `Nutrients_id` INT NOT NULL,
   PRIMARY KEY (`Medical_conditions_id`, `Nutrients_id`),
@@ -105,21 +105,21 @@ CREATE TABLE IF NOT EXISTS `mydb`.`Medical_conditions_has_Nutrients` (
   INDEX `fk_Medical_conditions_has_Nutrients_Medical_conditions1_idx` (`Medical_conditions_id` ASC) VISIBLE,
   CONSTRAINT `fk_Medical_conditions_has_Nutrients_Medical_conditions1`
     FOREIGN KEY (`Medical_conditions_id`)
-    REFERENCES `mydb`.`Medical_conditions` (`Medical_conditions_id`)
+    REFERENCES `supplicore_db`.`Medical_conditions` (`Medical_conditions_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_Medical_conditions_has_Nutrients_Nutrients1`
     FOREIGN KEY (`Nutrients_id`)
-    REFERENCES `mydb`.`Nutrients` (`Nutrients_id`)
+    REFERENCES `supplicore_db`.`Nutrients` (`Nutrients_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Reference_charts`
+-- Table `supplicore_db`.`Reference_charts`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Reference_charts` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Reference_charts` (
   `Reference_charts_id` INT NOT NULL,
   `name` VARCHAR(45) NOT NULL,
   `chart` JSON NOT NULL,
@@ -128,16 +128,16 @@ CREATE TABLE IF NOT EXISTS `mydb`.`Reference_charts` (
   INDEX `fk_Reference_charts_Medical_conditions1_idx` (`Medical_conditions_id` ASC) VISIBLE,
   CONSTRAINT `fk_Reference_charts_Medical_conditions1`
     FOREIGN KEY (`Medical_conditions_id`)
-    REFERENCES `mydb`.`Medical_conditions` (`Medical_conditions_id`)
+    REFERENCES `supplicore_db`.`Medical_conditions` (`Medical_conditions_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Reports`
+-- Table `supplicore_db`.`Reports`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Reports` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Reports` (
   `Reports_id` INT NOT NULL,
   `MRN` INT NOT NULL,
   `date` TIMESTAMP NOT NULL,
@@ -146,16 +146,16 @@ CREATE TABLE IF NOT EXISTS `mydb`.`Reports` (
   INDEX `fk_Reports_Patients1_idx` (`MRN` ASC) VISIBLE,
   CONSTRAINT `fk_Reports_Patients1`
     FOREIGN KEY (`MRN`)
-    REFERENCES `mydb`.`Patients` (`MRN`)
+    REFERENCES `supplicore_db`.`Patients` (`MRN`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Medications`
+-- Table `supplicore_db`.`Medications`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Medications` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Medications` (
   `Medications_id` INT NOT NULL,
   `name` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`Medications_id`))
@@ -163,9 +163,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `mydb`.`Patients_has_Medications`
+-- Table `supplicore_db`.`Patients_has_Medications`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `mydb`.`Patients_has_Medications` (
+CREATE TABLE IF NOT EXISTS `supplicore_db`.`Patients_has_Medications` (
   `Medications_id` INT NOT NULL,
   `MRN` INT NOT NULL,
   `dosage` VARCHAR(45) NOT NULL,
@@ -175,12 +175,12 @@ CREATE TABLE IF NOT EXISTS `mydb`.`Patients_has_Medications` (
   INDEX `fk_Medications_has_Patients_Medications1_idx` (`Medications_id` ASC) VISIBLE,
   CONSTRAINT `fk_Medications_has_Patients_Medications1`
     FOREIGN KEY (`Medications_id`)
-    REFERENCES `mydb`.`Medications` (`Medications_id`)
+    REFERENCES `supplicore_db`.`Medications` (`Medications_id`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_Medications_has_Patients_Patients1`
     FOREIGN KEY (`MRN`)
-    REFERENCES `mydb`.`Patients` (`MRN`)
+    REFERENCES `supplicore_db`.`Patients` (`MRN`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
