@@ -2,3 +2,5 @@ customer_notes.md
 config.json
 start_server.py
 notes.txt
+Dockerfile
+requirements.txt
