@@ -56,8 +56,11 @@ def main():
     # open GUI
     app = MultiPageApp()
     app.mainloop()
+
     
     """
+    # Text navigation made redundant by GUI
+
     # user choice
     in_main_loop = True
     while in_main_loop:
