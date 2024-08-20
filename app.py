@@ -11,6 +11,7 @@ $> pip install mysql-connector-python --upgrade
 
 """
 from db_interface import *
+from GUI import *
 import datetime as dt
 from datetime import datetime
 
@@ -52,9 +53,15 @@ def main():
     cnx = start_database(config)
     print("Database started")
     
+    # open GUI
+    app = MultiPageApp()
+    app.mainloop()
+    
+    """
     # user choice
     in_main_loop = True
     while in_main_loop:
+        
         # user input
         print("--------------------")
         print("What would you like to do?")
@@ -101,7 +108,7 @@ def main():
             case _:# else
                 print("Invalid input.")
                 continue
-
+        """
 
     # close database
     close_database(cnx)

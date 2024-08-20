@@ -249,7 +249,7 @@ def start_database(config):
     # start database
     try:
         cnx = mysql.connector.connect(**config)
-        print("Success")
+        print("Successfully connected to database")
     except mysql.connector.Error as err:
         if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
             print("Something is wrong with your user name or password")

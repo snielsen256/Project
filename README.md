@@ -11,7 +11,7 @@
  
 
 ## Files
-* main.py
+* app.py
 * db_interface.py - holds all the functions for interfacing with the database
 * README.md
 
