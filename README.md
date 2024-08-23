@@ -25,3 +25,5 @@
 * Saving as PDF
        * https://stackoverflow.com/questions/66269130/how-to-use-python-to-save-dict-as-a-table-in-pdf-with-cell-coloring 
        * https://prog.world/create-pdf-document-in-python-using-ptext/
+* GUI
+       * https://www.pythontutorial.net/tkinter/
