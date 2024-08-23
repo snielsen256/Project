@@ -321,7 +321,22 @@ def load_config():
     
     return config
 
-# CRUD functions ------------------------
+def update_config(settings):
+    """
+    Loads settings into config.json, replacing existing values
+    * Parameters: 
+        * settings: dict of values (such as str and int, not fields such as tk entry)
+    * Returns: none
+    """
+
+    settings["raise_on_warnings"] = True
+
+    json_settings = json.dumps(settings, indent=1)
+
+    with open('config.json', "w") as json_file:
+        json_file.write(json_settings)
+
+# CRUD functions ------------------------   
 def create(cnx, table_name: str, content: dict):
     """
     CRUD function. Creates a new entry in a table.
