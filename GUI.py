@@ -259,6 +259,25 @@ def create_scrollable(page):
     canvas.configure(yscrollcommand=scrollbar.set)
     canvas.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
+    page.bind_all("<MouseWheel>", lambda event: _on_mousewheel(event, canvas, page))
+
+def _on_mousewheel(event, canvas, page):
+    """
+    Scrolls the page without needing to hover over the scrollbar. 
+    Accommodates for different systems.
+    Called by a binding made in create_scrollable()
+    * Parameters: 
+        * event: The scrolling event
+        * canvas
+        * page
+    * Returns: none
+    """
+    if page.tk.call('tk', 'windowingsystem') == 'win32':
+        canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+    elif page.tk.call('tk', 'windowingsystem') == 'x11':
+        canvas.yview_scroll(int(-1 * (event.delta)), "units")
+    else:  # MacOS
+        canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
 
 def fill_settings(settings_entries):
     """
@@ -299,4 +318,4 @@ if __name__ == "__main__":
     # Run main() from app.py
     # The app is normally started by running app.py instead of this file.
     main()
-
+    
