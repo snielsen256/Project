@@ -52,6 +52,7 @@ def main():
     # start database
     cnx = start_database(config)
     print("Database started")
+    #test_fill(cnx)
     
     # open GUI
     app = MultiPageApp()
@@ -136,6 +137,7 @@ def generate_report(cnx, patient_MRN: int):
             "MRN": "",
             "DOB": "",
             "age": 0.0,
+            "age_unit": "",
             "weight_kg": 0.0,
             "current_date": "",
             "feeding_schedule": "",
@@ -180,7 +182,10 @@ def generate_report(cnx, patient_MRN: int):
     # age
     curr_date = dt.datetime.strptime(report["header"]["current_date"], date_format)
     DOB = dt.datetime.strptime(report["header"]["DOB"], date_format)
-    report["header"]["age"] = (curr_date.year - DOB.year)
+    age_dict = calculate_age(DOB, curr_date)
+    report["header"]["age_unit"] = age_dict["age_unit"]
+    report["header"]["age"] = age_dict["age"]
+        
     
     # calculate Holliday-Segar formula
     hs = 0.0
@@ -237,6 +242,37 @@ def save_report_JSON(report: dict):
         json.dump(report, file)
 
     print(f"Saved as {filename}")
+
+def calculate_age(DOB, curr_date):
+    """
+    Calculates the the age and age units (years, months, days) based off the difference of two dates. Called by generate_report().
+    * Parameters:
+        * DOB: datetime
+        * curr_date: datetime
+    * Returns: 
+           * dict
+                * age: float
+                * age_unit: string
+    """
+    years = curr_date.year - DOB.year
+
+    # Adjust if the birth date has not occurred yet this year
+    if (curr_date.month, curr_date.day) < (DOB.month, DOB.day):
+        years -= 1
+
+    # Calculate age in months if less than 1 year old
+    if years < 1:
+        months = (curr_date.year - DOB.year) * 12 + curr_date.month - DOB.month
+        if curr_date.day < DOB.day:
+            months -= 1  # Adjust if the day of the month hasn't occurred
+        if months == 0:
+            # Calculate days if less than 1 month old
+            days = (curr_date - DOB).days
+            return {"age": days, "age_unit": "days"}
+        return {"age": months, "age_unit": "months"}
+
+    # Default to returning age in years
+    return {"age": years, "age_unit": "years"}
 
 if __name__ == '__main__':
     main()
