@@ -18,7 +18,7 @@ USE `supplicore_db` ;
 -- Table `supplicore_db`.`Medical_conditions`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `supplicore_db`.`Medical_conditions` (
-  `Medical_conditions_id` VARCHAR(45) NOT NULL,
+  `Medical_conditions_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`Medical_conditions_id`))
 ENGINE = InnoDB;
@@ -41,7 +41,7 @@ ENGINE = InnoDB;
 -- Table `supplicore_db`.`Nutrients`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `supplicore_db`.`Nutrients` (
-  `Nutrients_id` INT NOT NULL,
+  `Nutrients_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   `units` ENUM("g", "mg") NOT NULL,
   `goals_chart` JSON NULL,
@@ -57,11 +57,10 @@ CREATE TABLE IF NOT EXISTS `supplicore_db`.`Patients` (
   `f_name` VARCHAR(45) NOT NULL,
   `m_name` VARCHAR(45) NULL,
   `l_name` VARCHAR(45) NOT NULL,
+  `sex` VARCHAR(1) NOT NULL,
   `DOB` DATE NOT NULL,
-  `age` FLOAT NOT NULL,
-  `age_unit` ENUM("years", "months", "weeks", "days") NOT NULL,
   `weight_kg` FLOAT NOT NULL,
-  `Medical_conditions_id` VARCHAR(45) NOT NULL,
+  `Medical_conditions_id` INT NOT NULL,
   PRIMARY KEY (`MRN`),
   INDEX `fk_Patients_Medical_conditions1_idx` (`Medical_conditions_id` ASC) VISIBLE,
   CONSTRAINT `fk_Patients_Medical_conditions1`
@@ -98,7 +97,7 @@ ENGINE = InnoDB;
 -- Table `supplicore_db`.`Medical_conditions_has_Nutrients`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `supplicore_db`.`Medical_conditions_has_Nutrients` (
-  `Medical_conditions_id` VARCHAR(45) NOT NULL,
+  `Medical_conditions_id` INT NOT NULL,
   `Nutrients_id` INT NOT NULL,
   PRIMARY KEY (`Medical_conditions_id`, `Nutrients_id`),
   INDEX `fk_Medical_conditions_has_Nutrients_Nutrients1_idx` (`Nutrients_id` ASC) VISIBLE,
@@ -120,10 +119,10 @@ ENGINE = InnoDB;
 -- Table `supplicore_db`.`Reference_charts`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `supplicore_db`.`Reference_charts` (
-  `Reference_charts_id` INT NOT NULL,
+  `Reference_charts_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   `chart` JSON NOT NULL,
-  `Medical_conditions_id` VARCHAR(45) NOT NULL,
+  `Medical_conditions_id` INT NOT NULL,
   PRIMARY KEY (`Reference_charts_id`),
   INDEX `fk_Reference_charts_Medical_conditions1_idx` (`Medical_conditions_id` ASC) VISIBLE,
   CONSTRAINT `fk_Reference_charts_Medical_conditions1`
@@ -138,7 +137,7 @@ ENGINE = InnoDB;
 -- Table `supplicore_db`.`Reports`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `supplicore_db`.`Reports` (
-  `Reports_id` INT NOT NULL,
+  `Reports_id` INT NOT NULL AUTO_INCREMENT,
   `MRN` INT NOT NULL,
   `date` TIMESTAMP NOT NULL,
   `report` JSON NOT NULL,
@@ -156,7 +155,7 @@ ENGINE = InnoDB;
 -- Table `supplicore_db`.`Medications`
 -- -----------------------------------------------------
 CREATE TABLE IF NOT EXISTS `supplicore_db`.`Medications` (
-  `Medications_id` INT NOT NULL,
+  `Medications_id` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`Medications_id`))
 ENGINE = InnoDB;
