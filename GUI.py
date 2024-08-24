@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 from tkcalendar import DateEntry
 from datetime import datetime
 from app import *
@@ -77,17 +78,129 @@ class PageCreate(ttk.Frame):
         self.controller = controller
 
         pack_common_buttons(self, controller)
-
-        
-class PageDataSelection(ttk.Frame):#
+       
+class PageDataSelection(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
-        self.controller = controller
+        self.cnx = controller.cnx
 
-        pack_common_buttons(self, controller)
+        # Page label
+        ttk.Label(self, text="Navigate Database").pack(side="top", anchor=tk.N, pady=10)
+
+        # Tables combobox
+        self.table_combobox = ttk.Combobox(self, state="readonly")
+        self.table_combobox.pack(side="top", fill="x", padx=10, pady=5)  # Using pack instead of grid
+        self.table_combobox.bind("<<ComboboxSelected>>", self.on_table_selected)
+
+        # Entries combobox
+        self.entry_combobox = ttk.Combobox(self, state="readonly")
+        self.entry_combobox.pack(side="top", fill="x", padx=10, pady=5)  # Using pack instead of grid
+        self.entry_combobox.bind("<<ComboboxSelected>>", self.on_entry_selected)
+
+        # Frame for displaying entry details
+        self.entry_display_frame = ttk.Frame(self)
+        self.entry_display_frame.pack(side="top", fill="both", expand=True, padx=10, pady=5)  # Using pack instead of grid
+
+        # Update tables
+        self.update_tables()
+
+    def update_tables(self):
+        """
+        Fetch all table names from the database and populate the table ComboBox.
+        """
+        tables = raw_sql(self.cnx, "SHOW TABLES")
+        table_list = tables.iloc[:, 0].tolist()
+        filtered_table_list = [table for table in table_list if '_has_' not in table]
+
+        # Populate the ComboBox with table names
+        self.table_combobox["values"] = filtered_table_list
+
+    def update_entries(self, selected_table):
+        """
+        Update the entry ComboBox with the first three columns of the entries from the selected table.
+        selected_table: The name of the table selected by the user
+        """
+        # Construct the SQL query to fetch the first three columns of each entry
+        query = f"SELECT * FROM {selected_table}"
         
+        # Execute the query using raw_sql to get a DataFrame of the entries
+        entries_df = raw_sql(self.cnx, query)
+        
+        # Check if the table has any entries
+        if entries_df.empty:
+            print(f"No entries found in {selected_table}")
+            self.entry_combobox["values"] = []
+            return
+        
+        # Ensure the table has at least two columns
+        if len(entries_df.columns) < 2:
+            print(f"{selected_table} has fewer than 2 columns")
+            return
+        
+        # Create a list of strings showing the first two columns of each entry
+        entries = entries_df.iloc[:, :2].apply(lambda row: " | ".join(map(str, row)), axis=1).tolist()
+        
+        # Update the ComboBox with these formatted entries
+        self.entry_combobox["values"] = entries
 
-        label = ttk.Label(self, text="This is Page One").pack(side="top", fill="x", pady=10)
+    def on_table_selected(self, event):
+        """
+        Called when the user selects a table. Fetch the entries of the selected table.
+        """
+        selected_table = self.table_combobox.get()
+        self.update_entries(selected_table)
+
+    def on_entry_selected(self, event):
+        """
+        Called when the user selects an entry. Display the details of the selected entry.
+        """
+        selected_table = self.table_combobox.get()
+        selected_entry = self.entry_combobox.get()
+        
+        # Extract the unique identifier (ID) from the entry (assuming the first column is the ID)
+        selected_entry_id = selected_entry.split(" | ")[0]
+
+        # Display the details of the selected entry
+        self.display_entry(selected_table, selected_entry_id)
+
+    def display_entry(self, selected_table, selected_entry_id):
+        """
+        Display all columns of the selected entry from the selected table.
+        * Parameters:
+            * selected_table: The table from which to fetch the entry
+            * selected_entry_id: The ID of the entry to fetch (or another unique identifier)
+        """
+        # Retrieve column names for the selected table
+        column_query = f"SHOW COLUMNS FROM {selected_table}"
+        columns_df = raw_sql(self.cnx, column_query)
+        
+        # Check if columns were retrieved
+        if columns_df.empty:
+            print("No columns found for the selected table")
+            return
+
+        # Assume the first column is the ID column
+        id_column = columns_df.iloc[0]['Field']
+
+        # Construct the SQL query to fetch the selected entry by its ID
+        query = f"SELECT * FROM {selected_table} WHERE {id_column} = {selected_entry_id}"
+        
+        # Execute the query using raw_sql and fetch the result as a DataFrame
+        entry_df = raw_sql(self.cnx, query)
+        
+        # Check if any result was returned
+        if entry_df.empty:
+            print("No entry found")
+            return
+        
+        # Clear any existing widgets in the entry display frame
+        for widget in self.entry_display_frame.winfo_children():
+            widget.destroy()
+        
+        # Loop through each column in the DataFrame and display its value
+        for index, (column, value) in enumerate(entry_df.iloc[0].items()):
+            label = ttk.Label(self.entry_display_frame, text=f"{column}: {value}")
+            label.grid(row=index, column=0, sticky="w", padx=10, pady=5)
 
 class PageReportEditing(ttk.Frame):
     def __init__(self, parent, controller):
