@@ -55,7 +55,7 @@ def main():
     #test_fill(cnx)
     
     # open GUI
-    app = MultiPageApp()
+    app = MultiPageApp(cnx)
     app.mainloop()
 
     
@@ -243,7 +243,7 @@ def save_report_JSON(report: dict):
 
     print(f"Saved as {filename}")
 
-def calculate_age(DOB, curr_date):
+def calculate_age(DOB: datetime, curr_date: datetime):
     """
     Calculates the the age and age units (years, months, days) based off the difference of two dates. Called by generate_report().
     * Parameters:
