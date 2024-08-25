@@ -84,22 +84,39 @@ class PageDataSelection(ttk.Frame):
         super().__init__(parent)
         self.cnx = controller.cnx
 
+        pack_common_buttons(self, controller)
+
         # Page label
         ttk.Label(self, text="Navigate Database").pack(side="top", anchor=tk.N, pady=10)
 
         # Tables combobox
+        ttk.Label(self, text="Table:").pack()
         self.table_combobox = ttk.Combobox(self, state="readonly")
-        self.table_combobox.pack(side="top", fill="x", padx=10, pady=5)  # Using pack instead of grid
+        self.table_combobox.pack(side="top", padx=10, pady=5)  # Using pack instead of grid
         self.table_combobox.bind("<<ComboboxSelected>>", self.on_table_selected)
 
         # Entries combobox
+        ttk.Label(self, text="Entry:").pack()
         self.entry_combobox = ttk.Combobox(self, state="readonly")
-        self.entry_combobox.pack(side="top", fill="x", padx=10, pady=5)  # Using pack instead of grid
+        self.entry_combobox.pack(side="top", padx=10, pady=5)  # Using pack instead of grid
         self.entry_combobox.bind("<<ComboboxSelected>>", self.on_entry_selected)
 
         # Frame for displaying entry details
         self.entry_display_frame = ttk.Frame(self)
-        self.entry_display_frame.pack(side="top", fill="both", expand=True, padx=10, pady=5)  # Using pack instead of grid
+        self.entry_display_frame.pack(side="top", fill="both", expand=True, padx=10, pady=5)
+
+        # Create Treeview for displaying entry details
+        self.tree = ttk.Treeview(self.entry_display_frame, columns=("name", "value"), show='headings', height=10)
+        self.tree.heading("name", text="Entry Name")
+        self.tree.heading("value", text="Entry Content")
+        self.tree.column("name", anchor=tk.W, width=200)
+        self.tree.column("value", anchor=tk.W, width=200)
+        self.tree.pack(side="left", width=300, expand=True)
+
+        # Add scrollbar
+        self.scrollbar = ttk.Scrollbar(self.entry_display_frame, orient="vertical", command=self.tree.yview)
+        self.scrollbar.pack(side="right", fill="y")
+        self.tree.configure(yscrollcommand=self.scrollbar.set)
 
         # Update tables
         self.update_tables()
@@ -143,14 +160,14 @@ class PageDataSelection(ttk.Frame):
         # Update the ComboBox with these formatted entries
         self.entry_combobox["values"] = entries
 
-    def on_table_selected(self, event):
+    def on_table_selected(self):
         """
         Called when the user selects a table. Fetch the entries of the selected table.
         """
         selected_table = self.table_combobox.get()
         self.update_entries(selected_table)
 
-    def on_entry_selected(self, event):
+    def on_entry_selected(self):
         """
         Called when the user selects an entry. Display the details of the selected entry.
         """
@@ -165,25 +182,16 @@ class PageDataSelection(ttk.Frame):
 
     def display_entry(self, selected_table, selected_entry_id):
         """
-        Display all columns of the selected entry from the selected table.
+        Display all columns of the selected entry from the selected table in a Treeview.
         * Parameters:
             * selected_table: The table from which to fetch the entry
             * selected_entry_id: The ID of the entry to fetch (or another unique identifier)
         """
-        # Retrieve column names for the selected table
-        column_query = f"SHOW COLUMNS FROM {selected_table}"
-        columns_df = raw_sql(self.cnx, column_query)
-        
-        # Check if columns were retrieved
-        if columns_df.empty:
-            print("No columns found for the selected table")
-            return
+        # Get the first column name (ID column) from the table description
+        id_column = raw_sql(self.cnx, f"DESCRIBE {selected_table}")
+        id_column_name = id_column.iloc[0, 0]  # Assuming the first column is the ID column
 
-        # Assume the first column is the ID column
-        id_column = columns_df.iloc[0]['Field']
-
-        # Construct the SQL query to fetch the selected entry by its ID
-        query = f"SELECT * FROM {selected_table} WHERE {id_column} = {selected_entry_id}"
+        query = f"SELECT * FROM {selected_table} WHERE {id_column_name} = {selected_entry_id}"
         
         # Execute the query using raw_sql and fetch the result as a DataFrame
         entry_df = raw_sql(self.cnx, query)
@@ -193,14 +201,13 @@ class PageDataSelection(ttk.Frame):
             print("No entry found")
             return
         
-        # Clear any existing widgets in the entry display frame
-        for widget in self.entry_display_frame.winfo_children():
-            widget.destroy()
+        # Clear the Treeview of previous data
+        for item in self.tree.get_children():
+            self.tree.delete(item)
         
-        # Loop through each column in the DataFrame and display its value
-        for index, (column, value) in enumerate(entry_df.iloc[0].items()):
-            label = ttk.Label(self.entry_display_frame, text=f"{column}: {value}")
-            label.grid(row=index, column=0, sticky="w", padx=10, pady=5)
+        # Loop through each column in the DataFrame and insert its value into the Treeview
+        for column, value in entry_df.iloc[0].items():
+            self.tree.insert("", "end", values=(column, value))
 
 class PageReportEditing(ttk.Frame):
     def __init__(self, parent, controller):
