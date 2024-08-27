@@ -31,7 +31,7 @@ class MultiPageApp(tk.Tk):
         self.container.grid_columnconfigure(0, weight=1)
 
         self.frames = {}
-        for F in (HomePage, PageDataSelection, PageReportEditing, PageSettings, PageCreate, PageImportReport):
+        for F in (HomePage, PageDatabase, PageReportEditing, PageSettings, PageCreate, PageImportReport):
             page_name = F.__name__
             frame = F(parent=self.container, controller=self)
             self.frames[page_name] = frame
@@ -62,7 +62,7 @@ class HomePage(ttk.Frame):
         # button - create
         homePageButtons["create"] = ttk.Button(self, text="+ Create", command=lambda: controller.show_frame("PageCreate"))
         # button - view database
-        homePageButtons["view"] = ttk.Button(self, text="View Database", command=lambda: controller.show_frame("PageDataSelection"))
+        homePageButtons["view"] = ttk.Button(self, text="Access Database", command=lambda: controller.show_frame("PageDatabase"))
         # button - generate report
         homePageButtons["generate"] = ttk.Button(self, text="Generate Report", command=lambda: controller.show_frame("PageReportEditing"))
         # button - import report
@@ -79,9 +79,10 @@ class PageCreate(ttk.Frame):
 
         pack_common_buttons(self, controller)
        
-class PageDataSelection(ttk.Frame):
+class PageDatabase(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
+        self.controller = controller  # Store the controller reference
         self.cnx = controller.cnx
 
         pack_common_buttons(self, controller)
@@ -92,18 +93,25 @@ class PageDataSelection(ttk.Frame):
         # Tables combobox
         ttk.Label(self, text="Table:").pack()
         self.table_combobox = ttk.Combobox(self, state="readonly")
-        self.table_combobox.pack(side="top", padx=10, pady=5)  # Using pack instead of grid
+        self.table_combobox.pack(side="top", padx=10, pady=5)
         self.table_combobox.bind("<<ComboboxSelected>>", self.on_table_selected)
 
         # Entries combobox
         ttk.Label(self, text="Entry:").pack()
         self.entry_combobox = ttk.Combobox(self, state="readonly")
-        self.entry_combobox.pack(side="top", padx=10, pady=5)  # Using pack instead of grid
+        self.entry_combobox.pack(side="top", padx=10, pady=5)
         self.entry_combobox.bind("<<ComboboxSelected>>", self.on_entry_selected)
 
         # Frame for displaying entry details
         self.entry_display_frame = ttk.Frame(self)
         self.entry_display_frame.pack(side="top", fill="both", expand=True, padx=10, pady=5)
+
+        self.add_view_fields()
+
+    def add_view_fields(self):
+        """
+        Makes the widgets for viewing the database entries
+        """       
 
         # Create Treeview for displaying entry details
         self.tree = ttk.Treeview(self.entry_display_frame, columns=("name", "value"), show='headings', height=10)
@@ -111,12 +119,22 @@ class PageDataSelection(ttk.Frame):
         self.tree.heading("value", text="Entry Content")
         self.tree.column("name", anchor=tk.W, width=200)
         self.tree.column("value", anchor=tk.W, width=200)
-        self.tree.pack(side="left", width=300, expand=True)
+        self.tree.pack(side="left", fill="both", expand=True)
 
         # Add scrollbar
         self.scrollbar = ttk.Scrollbar(self.entry_display_frame, orient="vertical", command=self.tree.yview)
         self.scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=self.scrollbar.set)
+
+        # Add and Remove buttons
+        self.button_frame = ttk.Frame(self)
+        self.button_frame.pack(side="top", pady=10)
+
+        self.add_button = ttk.Button(self.button_frame, text="Add Entry", command=self.on_add_entry, state="disabled")
+        self.add_button.pack(side="left", padx=5)
+
+        self.remove_button = ttk.Button(self.button_frame, text="Delete Entry", command=self.on_remove_entry, state="disabled")
+        self.remove_button.pack(side="left", padx=5)
 
         # Update tables
         self.update_tables()
@@ -134,51 +152,50 @@ class PageDataSelection(ttk.Frame):
 
     def update_entries(self, selected_table):
         """
-        Update the entry ComboBox with the first three columns of the entries from the selected table.
-        selected_table: The name of the table selected by the user
+        Update the entries combobox with entries from the selected table.
+        * Parameters:
+            * selected_table: The table from which to fetch the entries
         """
-        # Construct the SQL query to fetch the first three columns of each entry
+        # Fetch the first three columns of entries from the selected table
         query = f"SELECT * FROM {selected_table}"
-        
-        # Execute the query using raw_sql to get a DataFrame of the entries
-        entries_df = raw_sql(self.cnx, query)
-        
-        # Check if the table has any entries
-        if entries_df.empty:
-            print(f"No entries found in {selected_table}")
+        entries = raw_sql(self.cnx, query)
+
+        # Check if the result contains data
+        if not entries.empty:
+            # Convert the DataFrame to a list of tuples (containing the first three columns)
+            entry_list = entries.iloc[:, :3].apply(lambda row: tuple(row), axis=1).tolist()
+
+            # Populate the entry combobox
+            self.entry_combobox["values"] = entry_list
+            self.entry_combobox.set("")
+        else:
             self.entry_combobox["values"] = []
-            return
-        
-        # Ensure the table has at least two columns
-        if len(entries_df.columns) < 2:
-            print(f"{selected_table} has fewer than 2 columns")
-            return
-        
-        # Create a list of strings showing the first two columns of each entry
-        entries = entries_df.iloc[:, :2].apply(lambda row: " | ".join(map(str, row)), axis=1).tolist()
-        
-        # Update the ComboBox with these formatted entries
-        self.entry_combobox["values"] = entries
 
-    def on_table_selected(self):
+    def on_table_selected(self, event):
         """
-        Called when the user selects a table. Fetch the entries of the selected table.
+        Called when a table is selected. Update the state of the "Add" button.
         """
         selected_table = self.table_combobox.get()
-        self.update_entries(selected_table)
+        if selected_table:
+            self.add_button["state"] = "normal"
+            self.update_entries(selected_table)
 
-    def on_entry_selected(self):
+    def on_entry_selected(self, event=None):
         """
-        Called when the user selects an entry. Display the details of the selected entry.
+        Called when an entry is selected. Update the state of the "Remove" button 
+        and display the selected entry's details.
         """
-        selected_table = self.table_combobox.get()
-        selected_entry = self.entry_combobox.get()
-        
-        # Extract the unique identifier (ID) from the entry (assuming the first column is the ID)
-        selected_entry_id = selected_entry.split(" | ")[0]
+        selected_table = self.table_combobox.get()  # Get the selected table
+        selected_entry = self.entry_combobox.get()  # Get the selected entry
 
-        # Display the details of the selected entry
-        self.display_entry(selected_table, selected_entry_id)
+        if selected_entry:
+            self.remove_button["state"] = "normal"
+            
+            # Extract the unique identifier (ID) from the entry (assuming the first column is the ID)
+            selected_entry_id = selected_entry.split(" | ")[0]
+
+            # Display the details of the selected entry
+            self.display_entry(selected_table, selected_entry_id)
 
     def display_entry(self, selected_table, selected_entry_id):
         """
@@ -208,6 +225,90 @@ class PageDataSelection(ttk.Frame):
         # Loop through each column in the DataFrame and insert its value into the Treeview
         for column, value in entry_df.iloc[0].items():
             self.tree.insert("", "end", values=(column, value))
+    
+    def on_add_entry(self):
+        """
+        Called when the 'Add Entry' button is pressed. Show fields for adding a new entry.
+        """
+        selected_table = self.table_combobox.get()
+        if not selected_table:
+            return
+
+        # Clear existing widgets in entry display frame
+        for widget in self.entry_display_frame.winfo_children():
+            widget.destroy()
+
+        # Fetch the structure of the selected table to display fields
+        columns = raw_sql(self.cnx, f"DESCRIBE {selected_table}")
+
+        # For each non-auto-increment field, create an entry widget
+        self.add_fields = {}
+        for column in columns.itertuples():
+            field_name = column.Field
+            field_type = column.Type
+
+            if "auto_increment" not in column.Extra or field_name == "patient_id":
+                label = ttk.Label(self.entry_display_frame, text=f"{field_name}:")
+                label.pack(side="top", anchor=tk.W)
+                
+                # Create appropriate input widgets based on field type
+                if "date" in field_type:
+                    entry = DateEntry(self.entry_display_frame, width=12)
+                elif "int" in field_type:
+                    entry = ttk.Spinbox(self.entry_display_frame, from_=0, to=1000)  # Example for integer field
+                else:
+                    entry = ttk.Entry(self.entry_display_frame)
+
+                entry.pack(side="top", fill="x", padx=5, pady=2)
+                self.add_fields[field_name] = entry
+
+        # Add Submit button
+        submit_button = ttk.Button(self.entry_display_frame, text="Submit", command=self.submit_new_entry)
+        submit_button.pack(side="left", pady=10, padx=5)
+
+        # Add Back button to return to the previous page
+        back_button = ttk.Button(self.entry_display_frame, text="Back", command=self.go_back)
+        back_button.pack(side="left", pady=10, padx=5)
+
+    def on_remove_entry(self):
+        """
+        Triggered when the 'Remove Entry' button is pressed. Remove the selected entry.
+        """
+        selected_table = self.table_combobox.get()
+        selected_entry_id = self.entry_combobox.get()
+
+        if selected_table and selected_entry_id:
+            query = f"DELETE FROM {selected_table} WHERE id = {selected_entry_id}"
+            raw_sql(self.cnx, query)
+            print(f"Entry {selected_entry_id} removed from {selected_table}")
+
+    def submit_new_entry(self):
+        """
+        Called when the user submits the new entry.
+        """
+        selected_table = self.table_combobox.get()
+
+        if not selected_table:
+            return
+
+        # Collect data from the entry fields
+        field_data = {field: entry.get() for field, entry in self.add_fields.items()}
+
+        # Use the create function to insert the new entry into the database
+        create(self.cnx, selected_table, field_data)
+        
+        print(f"New entry added to {selected_table}")
+
+    def go_back(self):
+        """
+        Navigates the user back to the database viewing page
+        """
+        # Clear existing widgets in entry display frame
+        for widget in self.entry_display_frame.winfo_children():
+            widget.destroy()
+        
+        # restore viewing widgets
+        self.add_view_fields()
 
 class PageReportEditing(ttk.Frame):
     def __init__(self, parent, controller):
@@ -236,10 +337,10 @@ class PageReportEditing(ttk.Frame):
         report_entries["header"]["sex"] = ttk.Entry(self.scrollable_frame)
         
         report_labels["header"]["DOB"] = ttk.Label(self.scrollable_frame, text="DOB:")
-        report_entries["header"]["DOB"] = DateEntry(self.scrollable_frame)
+        report_entries["header"]["DOB"] = DateEntry(self.scrollable_frame, date_pattern='yyyy-mm-dd')
 
         report_labels["header"]["current_date"] = ttk.Label(self.scrollable_frame, text="Current Date:")
-        report_entries["header"]["current_date"] = DateEntry(self.scrollable_frame)
+        report_entries["header"]["current_date"] = DateEntry(self.scrollable_frame, date_pattern='yyyy-mm-dd')
 
         report_labels["header"]["age"] = ttk.Label(self.scrollable_frame, text=f"   Age: (Not enough data)")
 
