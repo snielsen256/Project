@@ -1,10 +1,9 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
+from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
 from datetime import datetime
 from app import *
-from db_interface import *
+from db_interface import raw_sql, create, read, update, delete, get_primary_key
 
 
 # Classes --------------------------
@@ -164,7 +163,7 @@ class PageDatabase(ttk.Frame):
         if not entries.empty:
             # Convert the DataFrame to a list of formatted strings
             # Assuming the first column is MRN and the second column is the first name
-            entry_list = entries.iloc[:, :3].apply(lambda row: f"{row[0]} | {row[1]}", axis=1).tolist()
+            entry_list = entries.iloc[:, :3].apply(lambda row: f"{row.iloc[0]} | {row.iloc[1]}", axis=1).tolist()
 
             # Populate the entry combobox
             self.entry_combobox["values"] = entry_list
@@ -275,7 +274,7 @@ class PageDatabase(ttk.Frame):
             primary_key = get_primary_key(self.cnx, selected_table)
 
             # Call the delete CRUD function, passing the correct primary key and the entry ID
-            delete(self.cnx, selected_table, selected_entry_id, primary_key)
+            delete(self.cnx, self, selected_table, selected_entry_id, primary_key)
 
             print(f"Entry {selected_entry_id} removed from {selected_table}")
 
@@ -292,7 +291,7 @@ class PageDatabase(ttk.Frame):
         field_data = {field: entry.get() for field, entry in self.add_fields.items()}
 
         # Use the create function to insert the new entry into the database
-        create(self.cnx, selected_table, field_data)
+        create(self.cnx, self, selected_table, field_data)
         
         print(f"New entry added to {selected_table}")
 
@@ -586,6 +585,17 @@ def fill_report(cnx, report_entries):
     report_entries["header"]["DOB"].insert(0, patient_data["DOB"].strftime("%m/%d/%y"))
     report_entries["header"]["sex"].insert(0, patient_data["sex"])
     report_entries["header"]["weight_kg"].insert(0, patient_data["weight_kg"])
+
+def confirm_commit_popup(parent_window=None):
+    """
+    Shows a confirmation popup for committing database changes.
+
+    * Parameters:
+        * parent_window - (Optional) the parent window for the popup
+    * Returns: 
+        * bool - True if confirmed, False otherwise
+    """
+    return messagebox.askyesno("Commit Changes", "Are you sure you want to commit these changes?", parent=parent_window)
 
 if __name__ == "__main__":
     # Run main() from app.py
