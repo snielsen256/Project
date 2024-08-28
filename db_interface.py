@@ -637,3 +637,15 @@ def dict_to_string_Update(content: dict):
 
     # return
     return final_str
+
+def get_primary_key(cnx, table_name):
+    """
+    Returns the primary key column name for a given table.
+    """
+    query = f"SHOW KEYS FROM {table_name} WHERE Key_name = 'PRIMARY'"
+    result = pd.read_sql(query, cnx)
+
+    if not result.empty:
+        return result['Column_name'].iloc[0]  # Return the primary key column
+    else:
+        raise ValueError(f"No primary key found for table {table_name}")

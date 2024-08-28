@@ -187,39 +187,33 @@ class PageDatabase(ttk.Frame):
         and display the selected entry's details.
         """
         selected_table = self.table_combobox.get()  # Get the selected table
-        selected_entry = self.entry_combobox.get()  # Get the selected entry, e.g., "123456 | John"
+        selected_entry = self.entry_combobox.get()  # Get the selected entry ID
 
         if selected_entry:
-            # Extract the unique identifier (ID) from the entry
-            selected_entry_id = selected_entry.split(" | ")[0]  # Extract MRN or ID from the first part
             self.remove_button["state"] = "normal"
 
-            # Display the details of the selected entry using the ID
-            self.display_entry(selected_table, selected_entry_id)
+            # Extract the unique identifier (ID) from the entry (assuming the first column is the ID)
+            selected_entry_id = selected_entry.split(" | ")[0]
 
-    def display_entry(self, selected_table, selected_entry_id):
+            # Get the primary key for the selected table
+            primary_key = get_primary_key(self.cnx, selected_table)
+
+            # Display the details of the selected entry using the correct primary key
+            self.display_entry(selected_table, primary_key, selected_entry_id)
+
+    def display_entry(self, selected_table, primary_key, entry_id):
         """
         Display all columns of the selected entry from the selected table in a Treeview.
         * Parameters:
             * selected_table: The table from which to fetch the entry
             * selected_entry_id: The ID of the entry to fetch (or another unique identifier)
         """
-        # Construct the SQL query to fetch the selected entry by its ID
-        query = f"SELECT * FROM {selected_table} WHERE MRN = {selected_entry_id}"
+        query = f"SELECT * FROM {selected_table} WHERE {primary_key} = '{entry_id}'"
+        entry_details = pd.read_sql(query, self.cnx)
 
-        # Execute the query using raw_sql and fetch the result as a DataFrame
-        entry_df = raw_sql(self.cnx, query)
-
-        # Check if any result was returned
-        if entry_df.empty:
-            print("No entry found")
-            return
-
-        # Clear any existing widgets in the entry display frame (i.e., clear the Treeview)
+        # Clear the treeview and display the new entry details
         self.tree.delete(*self.tree.get_children())
-
-        # Loop through each column in the DataFrame and display its value in the Treeview
-        for index, (column, value) in enumerate(entry_df.iloc[0].items()):
+        for column, value in entry_details.iloc[0].items():
             self.tree.insert("", "end", values=(column, value))
     
     def on_add_entry(self):
