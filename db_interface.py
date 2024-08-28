@@ -427,30 +427,26 @@ def update(cnx, table_name: str, id: int, content: dict):
     cursor1.execute(query)
     commit_db_changes(cnx)
 
-def delete(cnx, table_name: str, id: int):
+def delete(cnx, table_name: str, entry_id: int, primary_key: str):
     """
-    CRUD function. Deletes an entry in a table.
+    CRUD function. Deletes an entry in a table based on the primary key.
     * Parameters:
            * cnx - the connection to the database
-           * table_name: str 
-           * id: int - the id of the entry to delete (The primary key, the "{table_name}_id" value)
+           * table_name: str - the name of the table from which to delete the entry
+           * entry_id: int - the id of the entry to delete (the primary key value)
+           * primary_key: str - the name of the primary key column
     * Returns: none
     """
-    # determine the name of the primary key
-    p_key_name = f'{table_name}_id'
-
-    if table_name == "Patients":
-        p_key_name = "MRN"
-
-    # check for empty table
-    if id == -1:
-        return
-
-    # define query
+    # Define query using the correct primary key column
     query = (f"""
         DELETE FROM {table_name} 
-        WHERE {p_key_name} = {id};
+        WHERE {primary_key} = {entry_id};
         """)
+    
+    # Execute query
+    cursor1 = cnx.cursor()
+    cursor1.execute(query)
+    commit_db_changes(cnx)
     
     # cursor
     #print(query)
@@ -646,6 +642,6 @@ def get_primary_key(cnx, table_name):
     result = pd.read_sql(query, cnx)
 
     if not result.empty:
-        return result['Column_name'].iloc[0]  # Return the primary key column
+        return result['Column_name'].iloc[0]  # Returns the primary key column
     else:
         raise ValueError(f"No primary key found for table {table_name}")

@@ -108,6 +108,16 @@ class PageDatabase(ttk.Frame):
 
         self.add_view_fields()
 
+        # Add and Remove buttons
+        self.button_frame = ttk.Frame(self)
+        self.button_frame.pack(side="top", pady=10)
+
+        self.add_button = ttk.Button(self.button_frame, text="Add Entry", command=self.on_add_entry, state="disabled")
+        self.add_button.pack(side="left", padx=5)
+
+        self.remove_button = ttk.Button(self.button_frame, text="Delete Entry", command=self.on_remove_entry, state="disabled")
+        self.remove_button.pack(side="left", padx=5)
+
     def add_view_fields(self):
         """
         Makes the widgets for viewing the database entries
@@ -125,16 +135,6 @@ class PageDatabase(ttk.Frame):
         self.scrollbar = ttk.Scrollbar(self.entry_display_frame, orient="vertical", command=self.tree.yview)
         self.scrollbar.pack(side="right", fill="y")
         self.tree.configure(yscrollcommand=self.scrollbar.set)
-
-        # Add and Remove buttons
-        self.button_frame = ttk.Frame(self)
-        self.button_frame.pack(side="top", pady=10)
-
-        self.add_button = ttk.Button(self.button_frame, text="Add Entry", command=self.on_add_entry, state="disabled")
-        self.add_button.pack(side="left", padx=5)
-
-        self.remove_button = ttk.Button(self.button_frame, text="Delete Entry", command=self.on_remove_entry, state="disabled")
-        self.remove_button.pack(side="left", padx=5)
 
         # Update tables
         self.update_tables()
@@ -265,11 +265,18 @@ class PageDatabase(ttk.Frame):
         Triggered when the 'Remove Entry' button is pressed. Remove the selected entry.
         """
         selected_table = self.table_combobox.get()
-        selected_entry_id = self.entry_combobox.get()
+        selected_entry = self.entry_combobox.get()
 
-        if selected_table and selected_entry_id:
-            query = f"DELETE FROM {selected_table} WHERE id = {selected_entry_id}"
-            raw_sql(self.cnx, query)
+        if selected_table and selected_entry:
+            # Extract the unique identifier (ID) from the entry (assuming the first part before '|' is the ID)
+            selected_entry_id = selected_entry.split(" | ")[0]
+
+            # Get the primary key for the selected table
+            primary_key = get_primary_key(self.cnx, selected_table)
+
+            # Call the delete CRUD function, passing the correct primary key and the entry ID
+            delete(self.cnx, selected_table, selected_entry_id, primary_key)
+
             print(f"Entry {selected_entry_id} removed from {selected_table}")
 
     def submit_new_entry(self):
