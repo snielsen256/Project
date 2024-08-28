@@ -82,7 +82,7 @@ class PageCreate(ttk.Frame):
 class PageDatabase(ttk.Frame):
     def __init__(self, parent, controller):
         super().__init__(parent)
-        self.controller = controller  # Store the controller reference
+        self.controller = controller
         self.cnx = controller.cnx
 
         pack_common_buttons(self, controller)
@@ -162,8 +162,9 @@ class PageDatabase(ttk.Frame):
 
         # Check if the result contains data
         if not entries.empty:
-            # Convert the DataFrame to a list of tuples (containing the first three columns)
-            entry_list = entries.iloc[:, :3].apply(lambda row: tuple(row), axis=1).tolist()
+            # Convert the DataFrame to a list of formatted strings
+            # Assuming the first column is MRN and the second column is the first name
+            entry_list = entries.iloc[:, :3].apply(lambda row: f"{row[0]} | {row[1]}", axis=1).tolist()
 
             # Populate the entry combobox
             self.entry_combobox["values"] = entry_list
@@ -180,21 +181,20 @@ class PageDatabase(ttk.Frame):
             self.add_button["state"] = "normal"
             self.update_entries(selected_table)
 
-    def on_entry_selected(self, event=None):
+    def on_entry_selected(self, event):
         """
         Called when an entry is selected. Update the state of the "Remove" button 
         and display the selected entry's details.
         """
         selected_table = self.table_combobox.get()  # Get the selected table
-        selected_entry = self.entry_combobox.get()  # Get the selected entry
+        selected_entry = self.entry_combobox.get()  # Get the selected entry, e.g., "123456 | John"
 
         if selected_entry:
+            # Extract the unique identifier (ID) from the entry
+            selected_entry_id = selected_entry.split(" | ")[0]  # Extract MRN or ID from the first part
             self.remove_button["state"] = "normal"
-            
-            # Extract the unique identifier (ID) from the entry (assuming the first column is the ID)
-            selected_entry_id = selected_entry.split(" | ")[0]
 
-            # Display the details of the selected entry
+            # Display the details of the selected entry using the ID
             self.display_entry(selected_table, selected_entry_id)
 
     def display_entry(self, selected_table, selected_entry_id):
@@ -204,26 +204,22 @@ class PageDatabase(ttk.Frame):
             * selected_table: The table from which to fetch the entry
             * selected_entry_id: The ID of the entry to fetch (or another unique identifier)
         """
-        # Get the first column name (ID column) from the table description
-        id_column = raw_sql(self.cnx, f"DESCRIBE {selected_table}")
-        id_column_name = id_column.iloc[0, 0]  # Assuming the first column is the ID column
+        # Construct the SQL query to fetch the selected entry by its ID
+        query = f"SELECT * FROM {selected_table} WHERE MRN = {selected_entry_id}"
 
-        query = f"SELECT * FROM {selected_table} WHERE {id_column_name} = {selected_entry_id}"
-        
         # Execute the query using raw_sql and fetch the result as a DataFrame
         entry_df = raw_sql(self.cnx, query)
-        
+
         # Check if any result was returned
         if entry_df.empty:
             print("No entry found")
             return
-        
-        # Clear the Treeview of previous data
-        for item in self.tree.get_children():
-            self.tree.delete(item)
-        
-        # Loop through each column in the DataFrame and insert its value into the Treeview
-        for column, value in entry_df.iloc[0].items():
+
+        # Clear any existing widgets in the entry display frame (i.e., clear the Treeview)
+        self.tree.delete(*self.tree.get_children())
+
+        # Loop through each column in the DataFrame and display its value in the Treeview
+        for index, (column, value) in enumerate(entry_df.iloc[0].items()):
             self.tree.insert("", "end", values=(column, value))
     
     def on_add_entry(self):
