@@ -3,6 +3,7 @@ db_interface.py
 Holds all the functions for interfacing with the database
 """
 
+# from GUI import confirm_commit_popup # imported in commit_db_changes
 import mysql.connector
 from mysql.connector import errorcode
 import json
@@ -265,16 +266,22 @@ def start_database(config):
     else:
         return cnx
 
-def commit_db_changes(cnx):
+def commit_db_changes(cnx, parent_window):
     """
     Commits changes to the database.
 
     * Parameters:
            * cnx - the connection to the database
+           * parent_window - the parent of the popup window
     * Returns: none
     """
-    user_input = input("Are you sure you want to commit these changes? (y/n):")
-    if user_input[:1].lower() == "y":
+    from GUI import confirm_commit_popup
+
+    # Call the confirmation popup function
+    confirm = confirm_commit_popup(parent_window)
+
+    # If confirmed, commit the changes
+    if confirm:
         cnx.commit()
         print("Changes committed.")
     else:
@@ -337,11 +344,12 @@ def update_config(settings):
         json_file.write(json_settings)
 
 # CRUD functions ------------------------   
-def create(cnx, table_name: str, content: dict):
+def create(cnx, parent_window, table_name: str, content: dict):
     """
     CRUD function. Creates a new entry in a table.
     * Parameters:
            * cnx - the connection to the database
+           * parent_window: The GUI window, passed to commit_db_changes
            * table_name: str 
            * content: dict - contains the column names as keys, and the column content as values.
     * Returns: none
@@ -359,7 +367,7 @@ def create(cnx, table_name: str, content: dict):
     #print(query)
     cursor1 = cnx.cursor()
     cursor1.execute(query)
-    commit_db_changes(cnx)
+    commit_db_changes(cnx, parent_window)
 
 def read(cnx, table_name:str, select:str = "*", where:str = "*"):
     """
@@ -391,11 +399,12 @@ def read(cnx, table_name:str, select:str = "*", where:str = "*"):
     query_result = pd.read_sql(query, cnx)
     return query_result
 
-def update(cnx, table_name: str, id: int, content: dict):
+def update(cnx, parent_window, table_name: str, id: int, content: dict):
     """
     CRUD function. Updates an entry in a table.
     * Parameters:
            * cnx - the connection to the database
+           * parent_window: The GUI window, passed to commit_db_changes
            * table_name: str 
            * id: int - the id of the entry to update (The primary key, the "{table_name}_id" value)
            * content: dict - the values to replace. Dict keys are column names, dict values are the replacement values.
@@ -425,13 +434,14 @@ def update(cnx, table_name: str, id: int, content: dict):
     #print(query)
     cursor1 = cnx.cursor()
     cursor1.execute(query)
-    commit_db_changes(cnx)
+    commit_db_changes(cnx, parent_window)
 
-def delete(cnx, table_name: str, entry_id: int, primary_key: str):
+def delete(cnx, parent_window, table_name: str, entry_id: int, primary_key: str):
     """
     CRUD function. Deletes an entry in a table based on the primary key.
     * Parameters:
            * cnx - the connection to the database
+           * parent_window: The GUI window, passed to commit_db_changes
            * table_name: str - the name of the table from which to delete the entry
            * entry_id: int - the id of the entry to delete (the primary key value)
            * primary_key: str - the name of the primary key column
@@ -452,7 +462,7 @@ def delete(cnx, table_name: str, entry_id: int, primary_key: str):
     #print(query)
     cursor1 = cnx.cursor()
     cursor1.execute(query)
-    commit_db_changes(cnx)
+    commit_db_changes(cnx, parent_window)
 
 # Supporting functions ------------------------------
 def get_table_names(cnx, config):
