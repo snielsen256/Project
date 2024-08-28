@@ -11,7 +11,7 @@ $> pip install mysql-connector-python --upgrade
 
 """
 from db_interface import *
-from GUI import *
+#from GUI import MultiPageApp # imported in main
 import datetime as dt
 from datetime import datetime
 
@@ -45,6 +45,8 @@ def test_fill(cnx):
     cnx.commit()
 
 def main():
+    from GUI import MultiPageApp
+
     # Load config (login information)
     config = load_config()
     print("Config loaded")
