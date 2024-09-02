@@ -3,6 +3,7 @@
         "errorcode",
         "Holliday",
         "Segar",
+        "sqlalchemy",
         "Suppli"
     ]
 }

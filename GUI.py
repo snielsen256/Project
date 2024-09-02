@@ -32,11 +32,11 @@ class MultiPageApp(tk.Tk):
         self.frames = {}
         for F in (HomePage, PageDatabase, PageReportEditing, PageSettings, PageCreate, PageImportReport):
             page_name = F.__name__
-            frame = F(parent=self.container, controller=self)
+            frame = F(parent=self.container, controller=self, cnx=self.cnx)
             self.frames[page_name] = frame
 
-            # Place all the frames in the same grid location
-            frame.grid(row=0, column=0, sticky="nsew")
+            # Place all the frames in the same location
+            frame.pack(fill="both", expand=True)
 
         self.show_frame("HomePage")
 
@@ -48,9 +48,8 @@ class MultiPageApp(tk.Tk):
         frame.tkraise()
 
 class HomePage(ttk.Frame):
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+    def __init__(self, parent, controller, cnx):
+        super().__init__()
 
         ttk.Label(self, text="Home Page").pack(side="top", anchor=tk.N)
 
@@ -72,17 +71,16 @@ class HomePage(ttk.Frame):
             button.pack()
 
 class PageCreate(ttk.Frame):
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+    def __init__(self, parent, controller, cnx):
+        super().__init__()
+        
 
         pack_common_buttons(self, controller)
        
 class PageDatabase(ttk.Frame):
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
-        self.cnx = controller.cnx
+    def __init__(self, parent, controller, cnx):
+        super().__init__()
+        self.cnx = cnx
 
         pack_common_buttons(self, controller)
 
@@ -307,10 +305,8 @@ class PageDatabase(ttk.Frame):
         self.add_view_fields()
 
 class PageReportEditing(ttk.Frame):
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
-        cnx = self.controller.cnx
+    def __init__(self, parent, controller, cnx):
+        super().__init__()
 
         ttk.Label(self, text="Generate Report").pack(side="top", anchor=tk.N)
 
@@ -392,18 +388,16 @@ class PageReportEditing(ttk.Frame):
             report_labels["header"]["age"].config(text=f"       Age: {age_dict['age']} {age_dict['age_unit']}")
             
 class PageImportReport(ttk.Frame):
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+    def __init__(self, parent, controller, cnx):
+        super().__init__()
 
         pack_common_buttons(self, controller)
 
         label = ttk.Label(self, text="This is Page Two").pack(side="top", fill="x", pady=10)
 
 class PageSettings(ttk.Frame):
-    def __init__(self, parent, controller):
-        super().__init__(parent)
-        self.controller = controller
+    def __init__(self, parent, controller, cnx):
+        super().__init__()
 
         pack_common_buttons(self, controller)
 
@@ -596,6 +590,24 @@ def confirm_commit_popup(parent_window=None):
         * bool - True if confirmed, False otherwise
     """
     return messagebox.askyesno("Commit Changes", "Are you sure you want to commit these changes?", parent=parent_window)
+
+def show_db_error_popup(error_type, err=None):
+    """
+    Shows GUI popups based on the error type during database connection.
+
+    * Parameters:
+        * error_type: str - The type of error to handle ('access_denied', 'unknown_db', or 'generic')
+        * err: Exception - The optional SQLAlchemy error to display (default: None)
+    * Returns:
+        * bool: Indicates user choice in case of Yes/No dialog, otherwise None
+    """
+    
+    if error_type == "access_denied":
+        messagebox.showerror("Error", "Something is wrong with your user name or password.")
+    elif error_type == "unknown_db":
+        return messagebox.askyesno("Create Database", "Database does not exist. Create new?")
+    elif error_type == "generic" and err:
+        messagebox.showerror("Database Error", f"An error occurred: {str(err)}")
 
 if __name__ == "__main__":
     # Run main() from app.py

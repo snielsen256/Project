@@ -4,11 +4,17 @@ Holds all the functions for interfacing with the database
 """
 
 # from GUI import confirm_commit_popup # imported in commit_db_changes
-import mysql.connector
-from mysql.connector import errorcode
+from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError, OperationalError
+import pymysql
 import json
 import pandas as pd
 import warnings
+# from sqlalchemy import create_engine # imported in start_database
+# from sqlalchemy.exc import SQLAlchemyError, OperationalError # imported in start_database
+# from GUI import show_db_error_popup # imported in start_database
+# import logging # imported in start_database
+
 
 # General ----------------------------
 def raw_sql(cnx, query:str):
@@ -20,7 +26,9 @@ def raw_sql(cnx, query:str):
     * Returns: 
            * DataFrame - the result of the query
     """
-    query_result = pd.read_sql(query, cnx)
+    with cnx.connect() as connection:
+        query_result = pd.read_sql(query, connection)
+    
     return query_result
 
 # Database management -----------------------------
@@ -34,206 +42,17 @@ def create_new_database(config):
     # Make sure that MySQL is installed
     pass
 
+    #TODO
+
     # define database
-    cnx = mysql.connector.connect(**config)
-    cursor1 = cnx.cursor()
-    cursor1.execute(
-        f"""
-        -- MySQL Workbench Forward Engineering
-
-        SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
-        SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
-        SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
-
-        -- -----------------------------------------------------
-        -- Schema {config['database']}
-        -- -----------------------------------------------------
-
-        -- -----------------------------------------------------
-        -- Schema {config['database']}
-        -- -----------------------------------------------------
-        CREATE SCHEMA IF NOT EXISTS `{config['database']}` DEFAULT CHARACTER SET utf8 ;
-        USE `{config['database']}` ;
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Medical_conditions`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Medical_conditions` (
-        `Medical_conditions_id` VARCHAR(45) NOT NULL,
-        `name` VARCHAR(45) NOT NULL,
-        PRIMARY KEY (`Medical_conditions_id`))
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Supplements`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Supplements` (
-        `Supplements_id` INT NOT NULL AUTO_INCREMENT,
-        `name` VARCHAR(45) NOT NULL,
-        `kcal` FLOAT NOT NULL,
-        `displacement` FLOAT NULL,
-        `notes` VARCHAR(300) NULL,
-        PRIMARY KEY (`Supplements_id`))
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Nutrients`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Nutrients` (
-        `Nutrients_id` INT NOT NULL,
-        `name` VARCHAR(45) NOT NULL,
-        `units` ENUM("g", "mg") NOT NULL,
-        `goals_chart` JSON NULL,
-        PRIMARY KEY (`Nutrients_id`))
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Patients`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Patients` (
-        `MRN` INT NOT NULL,
-        `f_name` VARCHAR(45) NOT NULL,
-        `m_name` VARCHAR(45) NULL,
-        `l_name` VARCHAR(45) NOT NULL,
-        `DOB` DATE NOT NULL,
-        `age` FLOAT NOT NULL,
-        `age_unit` ENUM("years", "months", "weeks", "days") NOT NULL,
-        `weight_kg` FLOAT NOT NULL,
-        `Medical_conditions_id` VARCHAR(45) NOT NULL,
-        PRIMARY KEY (`MRN`),
-        INDEX `fk_Patients_Medical_conditions1_idx` (`Medical_conditions_id` ASC) VISIBLE,
-        CONSTRAINT `fk_Patients_Medical_conditions1`
-            FOREIGN KEY (`Medical_conditions_id`)
-            REFERENCES `{config['database']}`.`Medical_conditions` (`Medical_conditions_id`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION)
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Supplements_has_Nutrients`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Supplements_has_Nutrients` (
-        `Supplements_id` INT NOT NULL,
-        `Nutrients_id` INT NOT NULL,
-        PRIMARY KEY (`Supplements_id`, `Nutrients_id`),
-        INDEX `fk_Supplements_has_Nutrients_Nutrients1_idx` (`Nutrients_id` ASC) VISIBLE,
-        INDEX `fk_Supplements_has_Nutrients_Supplements_idx` (`Supplements_id` ASC) VISIBLE,
-        CONSTRAINT `fk_Supplements_has_Nutrients_Supplements`
-            FOREIGN KEY (`Supplements_id`)
-            REFERENCES `{config['database']}`.`Supplements` (`Supplements_id`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION,
-        CONSTRAINT `fk_Supplements_has_Nutrients_Nutrients1`
-            FOREIGN KEY (`Nutrients_id`)
-            REFERENCES `{config['database']}`.`Nutrients` (`Nutrients_id`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION)
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Medical_conditions_has_Nutrients`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Medical_conditions_has_Nutrients` (
-        `Medical_conditions_id` VARCHAR(45) NOT NULL,
-        `Nutrients_id` INT NOT NULL,
-        PRIMARY KEY (`Medical_conditions_id`, `Nutrients_id`),
-        INDEX `fk_Medical_conditions_has_Nutrients_Nutrients1_idx` (`Nutrients_id` ASC) VISIBLE,
-        INDEX `fk_Medical_conditions_has_Nutrients_Medical_conditions1_idx` (`Medical_conditions_id` ASC) VISIBLE,
-        CONSTRAINT `fk_Medical_conditions_has_Nutrients_Medical_conditions1`
-            FOREIGN KEY (`Medical_conditions_id`)
-            REFERENCES `{config['database']}`.`Medical_conditions` (`Medical_conditions_id`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION,
-        CONSTRAINT `fk_Medical_conditions_has_Nutrients_Nutrients1`
-            FOREIGN KEY (`Nutrients_id`)
-            REFERENCES `{config['database']}`.`Nutrients` (`Nutrients_id`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION)
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Reference_charts`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Reference_charts` (
-        `Reference_charts_id` INT NOT NULL,
-        `name` VARCHAR(45) NOT NULL,
-        `chart` JSON NOT NULL,
-        `Medical_conditions_id` VARCHAR(45) NOT NULL,
-        PRIMARY KEY (`Reference_charts_id`),
-        INDEX `fk_Reference_charts_Medical_conditions1_idx` (`Medical_conditions_id` ASC) VISIBLE,
-        CONSTRAINT `fk_Reference_charts_Medical_conditions1`
-            FOREIGN KEY (`Medical_conditions_id`)
-            REFERENCES `{config['database']}`.`Medical_conditions` (`Medical_conditions_id`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION)
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Reports`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Reports` (
-        `Reports_id` INT NOT NULL,
-        `MRN` INT NOT NULL,
-        `date` TIMESTAMP NOT NULL,
-        `report` JSON NOT NULL,
-        PRIMARY KEY (`Reports_id`),
-        INDEX `fk_Reports_Patients1_idx` (`MRN` ASC) VISIBLE,
-        CONSTRAINT `fk_Reports_Patients1`
-            FOREIGN KEY (`MRN`)
-            REFERENCES `{config['database']}`.`Patients` (`MRN`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION)
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Medications`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Medications` (
-        `Medications_id` INT NOT NULL,
-        `name` VARCHAR(45) NOT NULL,
-        PRIMARY KEY (`Medications_id`))
-        ENGINE = InnoDB;
-
-
-        -- -----------------------------------------------------
-        -- Table `{config['database']}`.`Patients_has_Medications`
-        -- -----------------------------------------------------
-        CREATE TABLE IF NOT EXISTS `{config['database']}`.`Patients_has_Medications` (
-        `Medications_id` INT NOT NULL,
-        `MRN` INT NOT NULL,
-        `dosage` VARCHAR(45) NOT NULL,
-        `notes` VARCHAR(300) NULL,
-        PRIMARY KEY (`Medications_id`, `MRN`),
-        INDEX `fk_Medications_has_Patients_Patients1_idx` (`MRN` ASC) VISIBLE,
-        INDEX `fk_Medications_has_Patients_Medications1_idx` (`Medications_id` ASC) VISIBLE,
-        CONSTRAINT `fk_Medications_has_Patients_Medications1`
-            FOREIGN KEY (`Medications_id`)
-            REFERENCES `{config['database']}`.`Medications` (`Medications_id`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION,
-        CONSTRAINT `fk_Medications_has_Patients_Patients1`
-            FOREIGN KEY (`MRN`)
-            REFERENCES `{config['database']}`.`Patients` (`MRN`)
-            ON DELETE NO ACTION
-            ON UPDATE NO ACTION)
-        ENGINE = InnoDB;
-
-
-        SET SQL_MODE=@OLD_SQL_MODE;
-        SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
-        SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;
-        """
-        )
-    cnx.commit()
-    cnx.close()
+    # cnx = mysql.connector.connect(**config)
+    # cursor1 = cnx.cursor()
+    # cursor1.execute(
+    #     f"""
+    #     """
+    #     )
+    # cnx.commit()
+    # cnx.close()
 
 def start_database(config):
     """
@@ -242,29 +61,49 @@ def start_database(config):
     * Parameters:
            * config: dict
     * Returns: 
-           * cnx - the connection to the database
+           * cnx: the connection to the database
     """
+    from sqlalchemy import create_engine
+    from sqlalchemy.exc import SQLAlchemyError, OperationalError
+    from GUI import show_db_error_popup
+    import logging
+    logging.basicConfig()
+    logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
     cnx = None
 
-    # start database
     try:
-        cnx = mysql.connector.connect(**config)
-        print("Successfully connected to database")
-    except mysql.connector.Error as err:
-        if err.errno == errorcode.ER_ACCESS_DENIED_ERROR:
-            print("Something is wrong with your user name or password")
-        elif err.errno == errorcode.ER_BAD_DB_ERROR:
-            user_input = input("Database does not exist. Create new? (y/n): ")
-            if user_input[:1].lower() == "y":
-                create_new_database(cnx)
+        # Extract database credentials and connection info
+        user = config['user']
+        password = config['password']
+        host = config['host']
+        database = config['database']
+        port = int(config.get('port', 3306))  # Ensure port is integer
+
+        # Create the SQLAlchemy engine (connection to the database)
+        cnx = create_engine(f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}")
+        print("Successfully connected to the database")
+        return cnx
+    
+    except OperationalError as err:
+        # Handle specific SQLAlchemy OperationalErrors
+        if "Access denied" in str(err):
+            show_db_error_popup("access_denied")
+        elif "Unknown database" in str(err):
+            user_choice = show_db_error_popup("unknown_db")
+            if user_choice:
+                create_new_database(config)  # Use config, not cnx, since cnx is None
                 print("Creating database")
             else:
-                print(":(")
+                print("Database creation cancelled")
         else:
-            print(str(err) + "000")
-    else:
-        return cnx
+            show_db_error_popup("generic", err)
+    
+    except SQLAlchemyError as err:
+        # Generic SQLAlchemy error handling
+        show_db_error_popup("generic", err)
+    
+    return cnx
 
 def commit_db_changes(cnx, parent_window):
     """
@@ -282,7 +121,8 @@ def commit_db_changes(cnx, parent_window):
 
     # If confirmed, commit the changes
     if confirm:
-        cnx.commit()
+        with cnx.connect() as connection:
+            connection.execution_options(isolation_level="AUTOCOMMIT").execute("COMMIT")
         print("Changes committed.")
     else:
         print("Not committed.")
@@ -305,7 +145,8 @@ def close_database(cnx):
         print("The database remains open.")
     """
     
-    cnx.close()
+    if cnx:
+        cnx.dispose()
 
 # Database login -------------------------
 def configure_login():
@@ -365,9 +206,9 @@ def create(cnx, parent_window, table_name: str, content: dict):
     
     # cursor
     #print(query)
-    cursor1 = cnx.cursor()
-    cursor1.execute(query)
-    commit_db_changes(cnx, parent_window)
+    with cnx.connect() as connection:
+        connection.execute(query)
+        commit_db_changes(cnx, parent_window)
 
 def read(cnx, table_name:str, select:str = "*", where:str = "*"):
     """
@@ -396,7 +237,8 @@ def read(cnx, table_name:str, select:str = "*", where:str = "*"):
     query = query + ";"
 
     # return
-    query_result = pd.read_sql(query, cnx)
+    with cnx.connect() as connection:
+        query_result = pd.read_sql(query, connection)
     return query_result
 
 def update(cnx, parent_window, table_name: str, id: int, content: dict):
@@ -432,8 +274,8 @@ def update(cnx, parent_window, table_name: str, id: int, content: dict):
     
     # cursor
     #print(query)
-    cursor1 = cnx.cursor()
-    cursor1.execute(query)
+    with cnx.connect() as connection:
+        connection.execute(query)
     commit_db_changes(cnx, parent_window)
 
 def delete(cnx, parent_window, table_name: str, entry_id: int, primary_key: str):
@@ -454,15 +296,15 @@ def delete(cnx, parent_window, table_name: str, entry_id: int, primary_key: str)
         """)
     
     # Execute query
-    cursor1 = cnx.cursor()
-    cursor1.execute(query)
-    commit_db_changes(cnx)
-    
-    # cursor
-    #print(query)
-    cursor1 = cnx.cursor()
-    cursor1.execute(query)
+    with cnx.connect() as connection:
+        connection.execute(query)
     commit_db_changes(cnx, parent_window)
+    
+    # # cursor
+    # #print(query)
+    # cursor1 = cnx.cursor()
+    # cursor1.execute(query)
+    # commit_db_changes(cnx, parent_window)
 
 # Supporting functions ------------------------------
 def get_table_names(cnx, config):
@@ -489,8 +331,8 @@ def get_table_names(cnx, config):
     
     # query the database
     warnings.filterwarnings('ignore')
-
-    query_result = pd.read_sql(query, cnx)
+    with cnx.connect() as connection:
+        query_result = pd.read_sql(query, connection)
     return query_result
 
 def get_table_names_interface(cnx, config):
@@ -649,7 +491,8 @@ def get_primary_key(cnx, table_name):
     Returns the primary key column name for a given table.
     """
     query = f"SHOW KEYS FROM {table_name} WHERE Key_name = 'PRIMARY'"
-    result = pd.read_sql(query, cnx)
+    with cnx.connect() as connection:
+        result = pd.read_sql(query, connection)
 
     if not result.empty:
         return result['Column_name'].iloc[0]  # Returns the primary key column
