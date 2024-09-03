@@ -12,7 +12,6 @@ class MultiPageApp(tk.Tk):
     def __init__(self, cnx):
         super().__init__()
         self.cnx = cnx
-        
 
         # define starting window dimensions
         page_width = 800
@@ -25,27 +24,34 @@ class MultiPageApp(tk.Tk):
         self.container = ttk.Frame(self)
         self.container.pack(fill="both", expand=True)
 
-        # Make sure the container frame can expand to hold the frames
-        self.container.grid_rowconfigure(0, weight=1)
-        self.container.grid_columnconfigure(0, weight=1)
+        # Prevent the container from shrinking to fit the frames
+        self.container.pack_propagate(False)
 
+        # Dictionary to hold references to frames
         self.frames = {}
         for F in (HomePage, PageDatabase, PageReportEditing, PageSettings, PageCreate, PageImportReport):
             page_name = F.__name__
             frame = F(parent=self.container, controller=self, cnx=self.cnx)
             self.frames[page_name] = frame
 
-            # Place all the frames in the same location
-            frame.pack(fill="both", expand=True)
+            # Initially hide all frames
+            frame.pack_forget()
 
+        # Show the HomePage by default
         self.show_frame("HomePage")
 
     def show_frame(self, page_name):
-        '''
-        Show a frame for the given page name
-        '''
+        """
+        Show a frame for the given page name.
+        Hides the current frame and shows the requested one.
+        """
+        # Hide all frames
+        for frame in self.frames.values():
+            frame.pack_forget()
+
+        # Show the selected frame
         frame = self.frames[page_name]
-        frame.tkraise()
+        frame.pack(fill="both", expand=True)
 
 class HomePage(ttk.Frame):
     def __init__(self, parent, controller, cnx):
