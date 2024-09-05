@@ -29,7 +29,7 @@ class MultiPageApp(tk.Tk):
 
         # Dictionary to hold references to frames
         self.frames = {}
-        for F in (HomePage, PageDatabase, PageReportEditing, PageSettings, PageCreate, PageImportReport):
+        for F in (HomePage, PageDatabase, PageReportEditing, PageSettings):
             page_name = F.__name__
             frame = F(parent=self.container, controller=self, cnx=self.cnx)
             self.frames[page_name] = frame
@@ -63,25 +63,14 @@ class HomePage(ttk.Frame):
 
         homePageButtons = {}
         
-        # button - create
-        homePageButtons["create"] = ttk.Button(self, text="+ Create", command=lambda: controller.show_frame("PageCreate"))
         # button - view database
         homePageButtons["view"] = ttk.Button(self, text="Access Database", command=lambda: controller.show_frame("PageDatabase"))
         # button - generate report
         homePageButtons["generate"] = ttk.Button(self, text="Generate Report", command=lambda: controller.show_frame("PageReportEditing"))
-        # button - import report
-        homePageButtons["import"] = ttk.Button(self, text="Import Report File", command=lambda: controller.show_frame("PageImportReport"))
 
         # pack buttons in dict
         for button in homePageButtons.values():
             button.pack()
-
-class PageCreate(ttk.Frame):
-    def __init__(self, parent, controller, cnx):
-        super().__init__()
-        
-
-        pack_common_buttons(self, controller)
        
 class PageDatabase(ttk.Frame):
     def __init__(self, parent, controller, cnx):
@@ -392,15 +381,7 @@ class PageReportEditing(ttk.Frame):
             
             # fill age field
             report_labels["header"]["age"].config(text=f"       Age: {age_dict['age']} {age_dict['age_unit']}")
-            
-class PageImportReport(ttk.Frame):
-    def __init__(self, parent, controller, cnx):
-        super().__init__()
-
-        pack_common_buttons(self, controller)
-
-        label = ttk.Label(self, text="This is Page Two").pack(side="top", fill="x", pady=10)
-
+    
 class PageSettings(ttk.Frame):
     def __init__(self, parent, controller, cnx):
         super().__init__()
