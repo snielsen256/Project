@@ -307,8 +307,14 @@ class PageReportEditing(ttk.Frame):
 
         pack_common_buttons(self, controller)
 
-        report_labels = {"header": {}, "calculations": {}}
-        report_entries = {"header": {}, "calculations": {}}
+        report_labels = {"header": {}, 
+                         "food_and_supplements": {},
+                         "calculations": {
+                             "Holliday-Segar": {}, 
+                             "WHO_REE": {}}}
+        report_entries = {"header": {}, 
+                          "food_and_supplements": {},
+                          "calculations": {}}
 
         create_scrollable(self)
 
@@ -349,38 +355,46 @@ class PageReportEditing(ttk.Frame):
         report_labels["header"]["solids"] = ttk.Label(self.scrollable_frame, text="Solids:")
         report_entries["header"]["solids"] = tk.Text(self.scrollable_frame, height=3)
 
-        # generated content
+        # calculations
+
+        report_labels["calculations"]["Holliday-Segar"]["title"] = ttk.Label(self.scrollable_frame, text=f"Holliday-Segar:")
+        report_labels["calculations"]["Holliday-Segar"]["maintenance"] = ttk.Label(self.scrollable_frame, text=f"   Maintenance: (Not enough data)")
+        report_labels["calculations"]["Holliday-Segar"]["sick_day"] = ttk.Label(self.scrollable_frame, text=f"   Sick Day: (Not enough data)")
+        report_labels["calculations"]["WHO_REE"] = ttk.Label(self.scrollable_frame, text=f"WHO_REE: (Not enough data)")
 
 
-        # pack header
-        for section_label_key in report_entries:
-            for label_key in report_labels[section_label_key]:
-                # Note: making the iteration variables in these loops the keys instead of the values makes it easier to align the dictionaries.
-                report_labels[section_label_key][label_key].pack(anchor=tk.W)
-                if (label_key in report_entries[section_label_key]):
-                    report_entries[section_label_key][label_key].pack(anchor=tk.W)
+        # pack
+        pack_recursive(report_labels, report_labels, report_entries)      
+    
 
-        # Add fetch button
-        
-                                                        
+        # Add fetch button                                          
         ttk.Button(
-            self, text="Fetch patient details", command=lambda: fetch(cnx, report_entries)).pack()
+            self, text="Fetch patient details", command=lambda: fetch(cnx, report_labels, report_entries)).pack()
         
-        def fetch(cnx, report_entries):
+        def fetch(cnx, report_labels, report_entries):
             """
             Called when 'fetch patient details' button is pushed
+            Parameters:
+                * cnx: the connection to the database
+                * report_labels: dict of tk labels
+                * report_entries: dict of tk entries
+            Returns:
+                * dict: the report dict
             """
 
             # fill report fields
-            fill_report(cnx, report_entries)
+            report = fill_report(cnx, report_labels, report_entries)
 
             # calculate age
             age_dict = calculate_age(
-                datetime.strptime(report_entries["header"]["DOB"].get(), "%m/%d/%y"),
-                datetime.strptime(report_entries["header"]["current_date"].get(), "%m/%d/%y"))
+                datetime.strptime(report_entries["header"]["DOB"].get(), date_format),
+                datetime.strptime(report_entries["header"]["current_date"].get(), date_format))
             
             # fill age field
             report_labels["header"]["age"].config(text=f"       Age: {age_dict['age']} {age_dict['age_unit']}")
+
+            return report
+            
     
 class PageSettings(ttk.Frame):
     def __init__(self, parent, controller, cnx):
@@ -447,6 +461,30 @@ def pack_common_buttons(page, controller):
     # pack buttons in dict
     for button in common_buttons.values():
         button.pack(anchor=tk.NW, side="left", padx=5, pady=10)
+
+def pack_recursive(section, report_labels, report_entries):
+    """
+    Recursively pack the labels and entries from the dictionary, regardless of depth.
+    * Parameters:
+        * section - the current section of the dictionary to pack
+        * report_labels - the dictionary containing labels
+        * report_entries - the dictionary containing entry widgets
+    """
+    for key in section:
+        # If the value is a dictionary, go deeper
+        if isinstance(report_labels.get(key, {}), dict):
+            # Ensure the key exists in report_entries, even if it's empty
+            if key not in report_entries:
+                report_entries[key] = {}
+            pack_recursive(section[key], report_labels[key], report_entries[key])
+        else:
+            # Pack the label if exists
+            if key in report_labels:
+                report_labels[key].pack(anchor=tk.W)
+            
+            # Pack the entry if exists
+            if key in report_entries:
+                report_entries[key].pack(anchor=tk.W)
 
 def get_fields(report_entries):
     """
@@ -541,18 +579,21 @@ def apply_settings(settings_entries):
     # update config file
     update_config(settings_values)
 
-def fill_report(cnx, report_entries):
+def fill_report(cnx, report_labels, report_entries):
     """
     Fill report entries with values from database based on the MRN
     * Parameters:
         * cnx: connection to the database
+        * report_labels: dict of tk labels
         * report_entries: dict of tk entries
-    * Returns: none
+    * Returns: 
+        dict: the report dict
     """
 
     # get data from database
     mrn = report_entries["header"]["MRN"].get()
-    patient_data = read(cnx, "Patients", "*", f"MRN = '{mrn}'").iloc[0].to_dict()
+    #patient_data = read(cnx, "Patients", "*", f"MRN = '{mrn}'").iloc[0].to_dict()
+    patient_report = generate_report(cnx, mrn)
     #print(patient_data)
 
     # erase current fields
@@ -562,10 +603,17 @@ def fill_report(cnx, report_entries):
     report_entries["header"]["weight_kg"].delete(0, "end")
 
     # extract relevant data from patient_data
-    report_entries["header"]["name"].insert(0, f"{patient_data['l_name']}, {patient_data['f_name']} {patient_data['m_name']}")
-    report_entries["header"]["DOB"].insert(0, patient_data["DOB"].strftime("%m/%d/%y"))
-    report_entries["header"]["sex"].insert(0, patient_data["sex"])
-    report_entries["header"]["weight_kg"].insert(0, patient_data["weight_kg"])
+    report_entries["header"]["name"].insert(0, f"{patient_report['header']['name']}")
+    report_entries["header"]["DOB"].insert(0, patient_report['header']["DOB"])
+    report_entries["header"]["sex"].insert(0, patient_report['header']["sex"])
+    report_entries["header"]["weight_kg"].insert(0, patient_report['header']["weight_kg"])
+
+    # fill fields that depend on patient data
+    report_labels["calculations"]["Holliday-Segar"]["maintenance"].config(text=f"   Maintenance: {patient_report['calculations']['Holliday-Segar']['maintenance']}")
+    report_labels["calculations"]["Holliday-Segar"]["sick_day"].config(text=f"   Sick Day: {patient_report['calculations']['Holliday-Segar']['sick_day']}")
+    report_labels["calculations"]["WHO_REE"].config(text=f"WHO_REE: {patient_report['calculations']['WHO_REE']}")
+
+    return patient_report
 
 def confirm_commit_popup(parent_window=None):
     """
