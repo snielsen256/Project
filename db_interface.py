@@ -4,7 +4,7 @@ Holds all the functions for interfacing with the database
 """
 
 # from GUI import confirm_commit_popup # imported in commit_db_changes
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
 import pymysql
 import json
@@ -122,7 +122,8 @@ def commit_db_changes(cnx, parent_window):
     # If confirmed, commit the changes
     if confirm:
         with cnx.connect() as connection:
-            connection.execution_options(isolation_level="AUTOCOMMIT").execute("COMMIT")
+            connection.execution_options(isolation_level="AUTOCOMMIT")
+            connection.commit()
         print("Changes committed.")
     else:
         print("Not committed.")
@@ -196,18 +197,19 @@ def create(cnx, parent_window, table_name: str, content: dict):
     * Returns: none
     """
 
-    # define query
-    col_names, col_values = dict_to_strings_Create(content)
+    # Escape column names with backticks and prepare values with placeholders
+    col_names = ", ".join(f"`{col}`" for col in content.keys())
+    placeholders = ", ".join([f":{col}" for col in content.keys()])
 
-    query = (f"""
-        INSERT INTO {table_name} {col_names} 
-        VALUES {col_values}
-        """)
+    # Use `text` to ensure SQLAlchemy treats the query as an executable statement
+    query = text(f"""
+        INSERT INTO {table_name} ({col_names}) 
+        VALUES ({placeholders})
+    """)
     
-    # cursor
-    #print(query)
+    # Execute the query using the values in `content`
     with cnx.connect() as connection:
-        connection.execute(query)
+        connection.execute(query, content)
         commit_db_changes(cnx, parent_window)
 
 def read(cnx, table_name:str, select:str = "*", where:str = "*"):

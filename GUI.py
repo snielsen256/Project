@@ -371,6 +371,13 @@ class PageReportEditing(ttk.Frame):
         ttk.Button(
             self, text="Fetch patient details", command=lambda: fetch(cnx, report_labels, report_entries)).pack()
         
+        # Add "save to database" button
+        ttk.Button(
+            self, text="Save to Computer", command=lambda: save_report_JSON(get_report_input(cnx, report_labels, report_entries))).pack()
+        
+        ttk.Button(
+            self, text="Save to Database", command=lambda: save_to_db(cnx, get_report_input(cnx, report_labels, report_entries))).pack()
+        
         def fetch(cnx, report_labels, report_entries):
             """
             Called when 'fetch patient details' button is pushed
@@ -394,8 +401,76 @@ class PageReportEditing(ttk.Frame):
             report_labels["header"]["age"].config(text=f"       Age: {age_dict['age']} {age_dict['age_unit']}")
 
             return report
-            
-    
+              
+        def get_report_input(cnx, report_labels, report_entries):
+            """
+            Gets information that the user input into the report, and puts it into a dictionary. 
+            Note that the formatting for this dictionary is different from the formatting from the 
+            output of generate_report(). This dictionary is not nested.
+            Parameters:
+                * cnx: the connection to the database
+                * report_labels: dict of tk labels
+                * report_entries: dict of tk entries
+            Returns:
+                * dict: the report dict
+            """
+
+            # form Dict
+            export_dict = {}
+
+            export_dict[report_labels["header"]["MRN"].cget("text")] = report_entries["header"]["MRN"].get()
+            export_dict[report_labels["header"]["name"].cget("text")] = report_entries["header"]["name"].get()
+            export_dict[report_labels["header"]["sex"].cget("text")] = report_entries["header"]["sex"].get()
+            export_dict[report_labels["header"]["DOB"].cget("text")] = report_entries["header"]["DOB"].get()
+            export_dict[report_labels["header"]["current_date"].cget("text")] = report_entries["header"]["current_date"].get()
+            export_dict["age"] = report_labels["header"]["age"].cget("text")
+            export_dict[report_labels["header"]["weight_kg"].cget("text")] = report_entries["header"]["weight_kg"].get()
+
+            export_dict[report_labels["header"]["feeding_schedule"].cget("text")] = report_entries["header"]["feeding_schedule"].get(1.0, "end-1c")
+            export_dict[report_labels["header"]["method_of_delivery"].cget("text")] = report_entries["header"]["method_of_delivery"].get(1.0, "end-1c")
+            export_dict[report_labels["header"]["home_recipe"].cget("text")] = report_entries["header"]["home_recipe"].get(1.0, "end-1c")
+            export_dict[report_labels["header"]["fluids"].cget("text")] = report_entries["header"]["fluids"].get(1.0, "end-1c")
+            export_dict[report_labels["header"]["solids"].cget("text")] = report_entries["header"]["solids"].get(1.0, "end-1c")
+
+            export_dict["Holliday-Segar_m"] = report_labels["calculations"]["Holliday-Segar"]["maintenance"].cget("text")
+            export_dict["Holliday-Segar_s"] = report_labels["calculations"]["Holliday-Segar"]["sick_day"].cget("text")
+            export_dict["WHO_REE"] = report_labels["calculations"]["WHO_REE"].cget("text")
+
+            # clean dict
+            cleaned_content = {}
+            for key, value in export_dict.items():
+                # keys
+                cleaned_key = key.replace(":", "").replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
+
+                # values
+                if cleaned_key in ["Feeding_Schedule", "Method_of_Delivery", "Home_Recipe", "Fluids", "Solids"]:
+                    cleaned_value = value
+                else:
+                    if ":" in value:
+                        cleaned_value = value.split(":", 1)[1].strip()
+                    else:
+                        cleaned_value = value
+                
+                cleaned_content[cleaned_key] = cleaned_value
+
+            # return dict
+            return cleaned_content
+
+        def save_to_db(cnx, report_export):
+            """
+            Saves the report to the database. Helps to format the call to create() correctly.
+            Parameters:
+                * cnx: the connection to the database
+                * report_export: dict, as given by get_report_input()
+            """
+
+            create(cnx, self, "reports", {
+                "MRN": int(report_export["MRN"]),
+                "date": datetime.strptime(report_export["Current_Date"], "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S"),
+                "report": json.dumps(report_export)
+                })
+
+
 class PageSettings(ttk.Frame):
     def __init__(self, parent, controller, cnx):
         super().__init__()

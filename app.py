@@ -237,8 +237,14 @@ def save_report_JSON(report: dict):
            * report: dict - The report, as outputted by generate_report()
     * Returns: None 
     """
+    try:
+        # if it comes from generate_report()
+        filename = f"report_out/{report['header']['MRN']}-({report['header']['current_date']}).json"
+    except:
+        # if it comes from the GUI
+        filename = f"report_out/{report['MRN']}-({report['Current_Date']}).json"
+        print(report)
 
-    filename = f"{report['header']['MRN']}-({report['header']['current_date']}).json"
 
     with open(filename, "w") as file: 
         json.dump(report, file)
