@@ -55,22 +55,79 @@ class MultiPageApp(tk.Tk):
 
 class HomePage(ttk.Frame):
     def __init__(self, parent, controller, cnx):
-        super().__init__()
+        super().__init__(parent)
+        font_type = "Helvetica"
 
-        ttk.Label(self, text="Home Page").pack(side="top", anchor=tk.N)
+        # Configure the grid layout for the frame
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
 
-        pack_common_buttons(self, controller)
+        #Add styles for buttons
+        style = ttk.Style()
 
-        homePageButtons = {}
-        
-        # button - view database
-        homePageButtons["view"] = ttk.Button(self, text="Access Database", command=lambda: controller.show_frame("PageDatabase"))
-        # button - generate report
-        homePageButtons["generate"] = ttk.Button(self, text="Generate Report", command=lambda: controller.show_frame("PageReportEditing"))
+        #Style home and settings buttons
+        style.configure(
+            "TopLeft.TButton",
+            font=(font_type, 11),
+            padding=4,
+            relief="flat",
+            width=7
+        )
 
-        # pack buttons in dict
-        for button in homePageButtons.values():
-            button.pack()
+        #Style menu buttons
+        style.configure(
+            "Menu.TButton",
+            font=(font_type, 16),
+            padding=15,
+            relief="flat",
+            width=15
+        )
+
+        # Home and Settings buttons
+        top_left_frame = ttk.Frame(self)
+        top_left_frame.grid(row=0, column=0, sticky="nw", padx=10, pady=10)
+
+        home_button = ttk.Button(
+            top_left_frame,
+            text="Home",
+            command=lambda: controller.show_frame("HomePage"),
+            style="TopLeft.TButton"
+        )
+        settings_button = ttk.Button(
+            top_left_frame,
+            text="Settings",
+            command=lambda: controller.show_frame("PageSettings"),
+            style="TopLeft.TButton"
+        )
+
+        home_button.pack(side="left", padx=5)
+        settings_button.pack(side="left", padx=5)
+
+        # Title
+        title_label = ttk.Label(
+            self, text="Home Page", font=(font_type, 20, "bold")
+        )
+        title_label.grid(row=0, column=0, pady=(50, 20), sticky="n")
+
+        # Menu buttons
+        button_frame = ttk.Frame(self)
+        button_frame.grid(row=1, column=0, pady=20)
+
+        access_db_button = ttk.Button(
+            button_frame,
+            text="Access Database",
+            command=lambda: controller.show_frame("PageDatabase"),
+            style="Menu.TButton"
+        )
+        generate_report_button = ttk.Button(
+            button_frame,
+            text="Generate Report",
+            command=lambda: controller.show_frame("PageReportEditing"),
+            style="Menu.TButton"
+        )
+
+        access_db_button.pack(pady=5)
+        generate_report_button.pack(pady=5)
        
 class PageDatabase(ttk.Frame):
     def __init__(self, parent, controller, cnx):
