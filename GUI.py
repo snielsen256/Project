@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.font as tkFont
 from tkinter import ttk, messagebox
 from tkcalendar import DateEntry
 from datetime import datetime
@@ -104,9 +105,8 @@ class HomePage(ttk.Frame):
         settings_button.pack(side="left", padx=5)
 
         # Title
-        title_label = ttk.Label(
-            self, text="Home Page", font=(font_type, 20, "bold")
-        )
+        title_font = tkFont.Font(family=font_type, size=20, weight="bold", underline=1)
+        title_label = ttk.Label(self, text="Home Page", font=title_font)        
         title_label.grid(row=0, column=0, pady=(50, 20), sticky="n")
 
         # Menu buttons
@@ -131,41 +131,98 @@ class HomePage(ttk.Frame):
        
 class PageDatabase(ttk.Frame):
     def __init__(self, parent, controller, cnx):
-        super().__init__()
+        super().__init__(parent)
         self.cnx = cnx
+        font_type = "Calibri"
 
-        pack_common_buttons(self, controller)
+        # Configure the grid layout for the frame
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(2, weight=1)
 
-        # Page label
-        ttk.Label(self, text="Navigate Database").pack(side="top", anchor=tk.N, pady=10)
+        # Add styles for buttons
+        style = ttk.Style()
+        style.configure(
+            "TopLeft.TButton",
+            font=(font_type, 12),
+            padding=(5, 5),
+            relief="flat"
+        )
+
+        # Home and Settings buttons
+        top_left_frame = ttk.Frame(self)
+        top_left_frame.grid(row=0, column=0, sticky="nw", padx=10, pady=10)
+
+        home_button = ttk.Button(
+            top_left_frame,
+            text="Home",
+            command=lambda: controller.show_frame("HomePage"),
+            style="TopLeft.TButton"
+        )
+        settings_button = ttk.Button(
+            top_left_frame,
+            text="Settings",
+            command=lambda: controller.show_frame("PageSettings"),
+            style="TopLeft.TButton"
+        )
+
+        home_button.pack(side="left", padx=5)
+        settings_button.pack(side="left", padx=5)
+
+        # Title
+        title_font = tkFont.Font(family=font_type, size=20, weight="bold", underline=1)
+        title_label = ttk.Label(self, text="Navigate Database", font=title_font)
+        title_label.grid(row=0, column=0, pady=(50, 20), sticky="n")
 
         # Tables combobox
-        ttk.Label(self, text="Table:").pack()
-        self.table_combobox = ttk.Combobox(self, state="readonly")
-        self.table_combobox.pack(side="top", padx=10, pady=5)
+        table_frame = ttk.Frame(self)
+        table_frame.grid(row=1, column=0, pady=10)
+
+        ttk.Label(table_frame, text="Table:", font=(font_type, 12)).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.table_combobox = ttk.Combobox(table_frame, state="readonly")
+        self.table_combobox.grid(row=0, column=1, padx=10, pady=5, sticky="w")
         self.table_combobox.bind("<<ComboboxSelected>>", self.on_table_selected)
 
         # Entries combobox
-        ttk.Label(self, text="Entry:").pack()
-        self.entry_combobox = ttk.Combobox(self, state="readonly")
-        self.entry_combobox.pack(side="top", padx=10, pady=5)
+        ttk.Label(table_frame, text="Entry:", font=(font_type, 12)).grid(row=1, column=0, padx=5, pady=5, sticky="w")
+        self.entry_combobox = ttk.Combobox(table_frame, state="readonly")
+        self.entry_combobox.grid(row=1, column=1, padx=10, pady=5, sticky="w")
         self.entry_combobox.bind("<<ComboboxSelected>>", self.on_entry_selected)
 
         # Frame for displaying entry details
-        self.entry_display_frame = ttk.Frame(self)
-        self.entry_display_frame.pack(side="top", fill="both", expand=True, padx=10, pady=5)
+        self.entry_display_frame = ttk.Frame(self, borderwidth=1, relief="solid")
+        self.entry_display_frame.grid(row=2, column=0, padx=10, pady=10, sticky="nsew")
 
         self.add_view_fields()
 
         # Add and Remove buttons
-        self.button_frame = ttk.Frame(self)
-        self.button_frame.pack(side="top", pady=10)
+        button_frame = ttk.Frame(self)
+        button_frame.grid(row=3, column=0, pady=20)
 
-        self.add_button = ttk.Button(self.button_frame, text="Add Entry", command=self.on_add_entry, state="disabled")
-        self.add_button.pack(side="left", padx=5)
+        self.add_button = ttk.Button(
+            button_frame,
+            text="Add Entry",
+            command=self.on_add_entry,
+            state="disabled",
+            style="TopLeft.TButton",
+            width=len("Add Entry") + 2
+        )
+        self.add_button.pack(side="left", padx=10, pady=5)
 
-        self.remove_button = ttk.Button(self.button_frame, text="Delete Entry", command=self.on_remove_entry, state="disabled")
-        self.remove_button.pack(side="left", padx=5)
+        self.remove_button = ttk.Button(
+            button_frame,
+            text="Delete Entry",
+            command=self.on_remove_entry,
+            state="disabled",
+            style="TopLeft.TButton",
+            width=len("Delete Entry") + 2
+        )
+        self.remove_button.pack(side="left", padx=10, pady=5)
+
+    def add_view_fields(self):
+        """
+        Add fields to the entry display frame
+        """
+        ttk.Label(self.entry_display_frame, text="Entry Details", font=("Calibri", 12, "italic")).pack()
 
     def add_view_fields(self):
         """
