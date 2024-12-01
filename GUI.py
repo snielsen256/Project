@@ -415,174 +415,227 @@ class PageDatabase(ttk.Frame):
 
 class PageReportEditing(ttk.Frame):
     def __init__(self, parent, controller, cnx):
-        super().__init__()
+        super().__init__(parent)
 
-        ttk.Label(self, text="Generate Report").pack(side="top", anchor=tk.N)
+        font_type = "Helvetica"
 
-        pack_common_buttons(self, controller)
+        # Configure the grid layout for the frame
+        self.columnconfigure(0, weight=1)
+        self.rowconfigure(1, weight=1)
 
-        report_labels = {"header": {}, 
-                         "food_and_supplements": {},
-                         "calculations": {
-                             "Holliday-Segar": {}, 
-                             "WHO_REE": {}}}
-        report_entries = {"header": {}, 
-                          "food_and_supplements": {},
-                          "calculations": {}}
+        # Add styles for buttons
+        style = ttk.Style()
 
-        create_scrollable(self)
+        # Style home and settings buttons
+        style.configure(
+            "TopLeft.TButton",
+            font=(font_type, 11),
+            padding=4,
+            relief="flat",
+            width=7
+        )
 
+        # Title style
+        title_font = tkFont.Font(family=font_type, size=20, weight="bold", underline=1)
 
-        # header entries
-        report_labels["header"]["MRN"] = ttk.Label(self.scrollable_frame, text="MRN:")
-        report_entries["header"]["MRN"] = ttk.Entry(self.scrollable_frame)
+        # Home and Settings buttons
+        top_left_frame = ttk.Frame(self)
+        top_left_frame.grid(row=0, column=0, sticky="nw", padx=10, pady=10)
 
-        report_labels["header"]["name"] = ttk.Label(self.scrollable_frame, text="Patient Name:")
-        report_entries["header"]["name"] = ttk.Entry(self.scrollable_frame)
+        home_button = ttk.Button(
+            top_left_frame,
+            text="Home",
+            command=lambda: controller.show_frame("HomePage"),
+            style="TopLeft.TButton"
+        )
+        settings_button = ttk.Button(
+            top_left_frame,
+            text="Settings",
+            command=lambda: controller.show_frame("PageSettings"),
+            style="TopLeft.TButton"
+        )
 
-        report_labels["header"]["sex"] = ttk.Label(self.scrollable_frame, text="Sex:")
-        report_entries["header"]["sex"] = ttk.Entry(self.scrollable_frame)
+        home_button.pack(side="left", padx=5)
+        settings_button.pack(side="left", padx=5)
+
+        # Title
+        title_label = ttk.Label(self, text="Generate Report", font=title_font)
+        title_label.grid(row=0, column=0, pady=(50, 20), sticky="n")
+
+        # Scrollable content area
+        content_frame = ttk.Frame(self)
+        content_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+
+        # Create scrollable frame
+        self.scrollable_frame = self.create_scrollable(content_frame)
+
         
-        report_labels["header"]["DOB"] = ttk.Label(self.scrollable_frame, text="DOB:")
-        report_entries["header"]["DOB"] = DateEntry(self.scrollable_frame, date_pattern='yyyy-mm-dd')
+        report_labels = {"header": {}, "calculations": {"Holliday-Segar": {}, "WHO_REE": {}}}
+        report_entries = {"header": {}, "calculations": {}}
 
-        report_labels["header"]["current_date"] = ttk.Label(self.scrollable_frame, text="Current Date:")
-        report_entries["header"]["current_date"] = DateEntry(self.scrollable_frame, date_pattern='yyyy-mm-dd')
-
-        report_labels["header"]["age"] = ttk.Label(self.scrollable_frame, text=f"   Age: (Not enough data)")
-
-        report_labels["header"]["weight_kg"] = ttk.Label(self.scrollable_frame, text="Weight (kg):")
-        report_entries["header"]["weight_kg"] = ttk.Spinbox(self.scrollable_frame, from_=0, to=1023, textvariable=1, wrap=False)
-
-        report_labels["header"]["feeding_schedule"] = ttk.Label(self.scrollable_frame, text="Feeding Schedule:")
-        report_entries["header"]["feeding_schedule"] = tk.Text(self.scrollable_frame, height=4)
-
-        report_labels["header"]["method_of_delivery"] = ttk.Label(self.scrollable_frame, text="Method of Delivery:")
-        report_entries["header"]["method_of_delivery"] = tk.Text(self.scrollable_frame, height=4)
-
-        report_labels["header"]["home_recipe"] = ttk.Label(self.scrollable_frame, text="Home Recipe:")
-        report_entries["header"]["home_recipe"] = tk.Text(self.scrollable_frame, height=4)
-
-        report_labels["header"]["fluids"] = ttk.Label(self.scrollable_frame, text="Fluids:")
-        report_entries["header"]["fluids"] = tk.Text(self.scrollable_frame, height=3)
-
-        report_labels["header"]["solids"] = ttk.Label(self.scrollable_frame, text="Solids:")
-        report_entries["header"]["solids"] = tk.Text(self.scrollable_frame, height=3)
-
-        # calculations
-
-        report_labels["calculations"]["Holliday-Segar"]["title"] = ttk.Label(self.scrollable_frame, text=f"Holliday-Segar:")
-        report_labels["calculations"]["Holliday-Segar"]["maintenance"] = ttk.Label(self.scrollable_frame, text=f"   Maintenance: (Not enough data)")
-        report_labels["calculations"]["Holliday-Segar"]["sick_day"] = ttk.Label(self.scrollable_frame, text=f"   Sick Day: (Not enough data)")
-        report_labels["calculations"]["WHO_REE"] = ttk.Label(self.scrollable_frame, text=f"WHO_REE: (Not enough data)")
+        self.create_entry("header", "MRN", "MRN:", report_labels=report_labels, report_entries=report_entries)
+        self.create_entry("header", "name", "Patient Name:", report_labels=report_labels, report_entries=report_entries)
+        self.create_entry("header", "sex", "Sex:", report_labels=report_labels, report_entries=report_entries)
+        self.create_entry("header", "DOB", "DOB:", report_labels=report_labels, report_entries=report_entries)
+        self.create_entry("header", "current_date", "Current Date:", report_labels=report_labels, report_entries=report_entries)
+        self.create_entry("header", "weight_kg", "Weight (kg):", entry_type="spinbox", report_labels=report_labels, report_entries=report_entries)
+        self.create_text_entry("header", "feeding_schedule", "Feeding Schedule:", report_labels=report_labels, report_entries=report_entries)
+        self.create_text_entry("header", "method_of_delivery", "Method of Delivery:", report_labels=report_labels, report_entries=report_entries)
+        self.create_text_entry("header", "home_recipe", "Home Recipe:", report_labels=report_labels, report_entries=report_entries)
+        self.create_text_entry("header", "fluids", "Fluids:", report_labels=report_labels, report_entries=report_entries)
+        self.create_text_entry("header", "solids", "Solids:", report_labels=report_labels, report_entries=report_entries)
 
 
-        # pack
-        pack_recursive(report_labels, report_labels, report_entries)      
-    
+        # Add Fetch and Save buttons
+        button_frame = ttk.Frame(self)
+        button_frame.grid(row=2, column=0, pady=20)
 
-        # Add fetch button                                          
-        ttk.Button(
-            self, text="Fetch patient details", command=lambda: fetch(cnx, report_labels, report_entries)).pack()
+        fetch_button = ttk.Button(
+            button_frame,
+            text="Fetch patient details",
+            command=lambda: self.fetch(cnx, report_labels, report_entries)
+        )
+        save_to_computer_button = ttk.Button(
+            button_frame,
+            text="Save to Computer",
+            command=lambda: save_report_JSON(self.get_report_input(cnx, report_labels, report_entries))
+        )
+        save_to_database_button = ttk.Button(
+            button_frame,
+            text="Save to Database",
+            command=lambda: self.save_to_db(cnx, self.get_report_input(cnx, report_labels, report_entries))
+        )
+
+        fetch_button.pack(side="left", padx=10)
+        save_to_computer_button.pack(side="left", padx=10)
+        save_to_database_button.pack(side="left", padx=10)
+
+    def save_to_db(self, cnx, report_export):
+        """
+        Saves the report to the database. Helps to format the call to create() correctly.
+        Parameters:
+            * cnx: the connection to the database
+            * report_export: dict, as given by get_report_input()
+        """
+        create(cnx, self, "reports", {
+            "MRN": int(report_export["MRN"]),
+            "date": datetime.strptime(report_export["Current_Date"], "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S"),
+            "report": json.dumps(report_export)
+        })
+
+    def create_scrollable(self, parent):
+        """
+        Creates a scrollable frame inside the given parent widget.
+        """
+        canvas = tk.Canvas(parent)
+        scrollbar = ttk.Scrollbar(parent, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        return scrollable_frame
+
+    def create_entry(self, section, field_name, label_text, entry_type="entry", report_labels=None, report_entries=None):
+        """
+        Creates entry widgets for each report section.
+        """
+        # Create the label for the entry field
+        report_labels[section][field_name] = ttk.Label(self.scrollable_frame, text=label_text)
         
-        # Add "save to database" button
-        ttk.Button(
-            self, text="Save to Computer", command=lambda: save_report_JSON(get_report_input(cnx, report_labels, report_entries))).pack()
+        # Create the entry widget
+        if entry_type == "entry":
+            report_entries[section][field_name] = ttk.Entry(self.scrollable_frame)
+        elif entry_type == "spinbox":
+            report_entries[section][field_name] = ttk.Spinbox(self.scrollable_frame, from_=0, to=1023)
         
-        ttk.Button(
-            self, text="Save to Database", command=lambda: save_to_db(cnx, get_report_input(cnx, report_labels, report_entries))).pack()
+        # Pack the label and entry
+        report_labels[section][field_name].pack(anchor=tk.W, pady=5)
+        report_entries[section][field_name].pack(anchor=tk.W, pady=5)
+
+    def create_text_entry(self, section, field_name, label_text, report_labels=None, report_entries=None):
+        """
+        Creates text widgets for each report section.
+        """
+        # Create the label for the text field
+        report_labels[section][field_name] = ttk.Label(self.scrollable_frame, text=label_text)
         
-        def fetch(cnx, report_labels, report_entries):
-            """
-            Called when 'fetch patient details' button is pushed
-            Parameters:
-                * cnx: the connection to the database
-                * report_labels: dict of tk labels
-                * report_entries: dict of tk entries
-            Returns:
-                * dict: the report dict
-            """
+        # Create the text widget
+        report_entries[section][field_name] = tk.Text(self.scrollable_frame, height=3)
+        
+        # Pack the label and text widget
+        report_labels[section][field_name].pack(anchor=tk.W, pady=5)
+        report_entries[section][field_name].pack(anchor=tk.W, pady=5)
 
-            # fill report fields
-            report = fill_report(cnx, report_labels, report_entries)
+    def fetch(self, cnx, report_labels, report_entries):
+        """
+        Called when 'fetch patient details' button is pushed
+        Parameters:
+            * cnx: the connection to the database
+            * report_labels: dict of tk labels
+            * report_entries: dict of tk entries
+        Returns:
+            * dict: the report dict
+        """
+        # fill report fields
+        report = fill_report(cnx, report_labels, report_entries)
 
-            # calculate age
-            age_dict = calculate_age(
-                datetime.strptime(report_entries["header"]["DOB"].get(), date_format),
-                datetime.strptime(report_entries["header"]["current_date"].get(), date_format))
-            
-            # fill age field
-            report_labels["header"]["age"].config(text=f"       Age: {age_dict['age']} {age_dict['age_unit']}")
+        # calculate age
+        age_dict = calculate_age(
+            datetime.strptime(report_entries["header"]["DOB"].get(), "%Y-%m-%d"),
+            datetime.strptime(report_entries["header"]["current_date"].get(), "%Y-%m-%d")
+        )
 
-            return report
-              
-        def get_report_input(cnx, report_labels, report_entries):
-            """
-            Gets information that the user input into the report, and puts it into a dictionary. 
-            Note that the formatting for this dictionary is different from the formatting from the 
-            output of generate_report(). This dictionary is not nested.
-            Parameters:
-                * cnx: the connection to the database
-                * report_labels: dict of tk labels
-                * report_entries: dict of tk entries
-            Returns:
-                * dict: the report dict
-            """
+        # fill age field
+        report_labels["header"]["age"].config(text=f"       Age: {age_dict['age']} {age_dict['age_unit']}")
 
-            # form Dict
-            export_dict = {}
+        return report
 
-            export_dict[report_labels["header"]["MRN"].cget("text")] = report_entries["header"]["MRN"].get()
-            export_dict[report_labels["header"]["name"].cget("text")] = report_entries["header"]["name"].get()
-            export_dict[report_labels["header"]["sex"].cget("text")] = report_entries["header"]["sex"].get()
-            export_dict[report_labels["header"]["DOB"].cget("text")] = report_entries["header"]["DOB"].get()
-            export_dict[report_labels["header"]["current_date"].cget("text")] = report_entries["header"]["current_date"].get()
-            export_dict["age"] = report_labels["header"]["age"].cget("text")
-            export_dict[report_labels["header"]["weight_kg"].cget("text")] = report_entries["header"]["weight_kg"].get()
+    def get_report_input(self, cnx, report_labels, report_entries):
+        """
+        Gets information that the user input into the report, and puts it into a dictionary. 
+        Parameters:
+            * cnx: the connection to the database
+            * report_labels: dict of tk labels
+            * report_entries: dict of tk entries
+        Returns:
+            * dict: the report dict
+        """
+        export_dict = {}
 
-            export_dict[report_labels["header"]["feeding_schedule"].cget("text")] = report_entries["header"]["feeding_schedule"].get(1.0, "end-1c")
-            export_dict[report_labels["header"]["method_of_delivery"].cget("text")] = report_entries["header"]["method_of_delivery"].get(1.0, "end-1c")
-            export_dict[report_labels["header"]["home_recipe"].cget("text")] = report_entries["header"]["home_recipe"].get(1.0, "end-1c")
-            export_dict[report_labels["header"]["fluids"].cget("text")] = report_entries["header"]["fluids"].get(1.0, "end-1c")
-            export_dict[report_labels["header"]["solids"].cget("text")] = report_entries["header"]["solids"].get(1.0, "end-1c")
+        export_dict["MRN"] = report_entries["header"]["MRN"].get()
+        export_dict["name"] = report_entries["header"]["name"].get()
+        export_dict["sex"] = report_entries["header"]["sex"].get()
+        export_dict["DOB"] = report_entries["header"]["DOB"].get()
+        export_dict["current_date"] = report_entries["header"]["current_date"].get()
+        export_dict["age"] = report_labels["header"]["age"].cget("text")
+        export_dict["weight_kg"] = report_entries["header"]["weight_kg"].get()
 
-            export_dict["Holliday-Segar_m"] = report_labels["calculations"]["Holliday-Segar"]["maintenance"].cget("text")
-            export_dict["Holliday-Segar_s"] = report_labels["calculations"]["Holliday-Segar"]["sick_day"].cget("text")
-            export_dict["WHO_REE"] = report_labels["calculations"]["WHO_REE"].cget("text")
+        export_dict["feeding_schedule"] = report_entries["header"]["feeding_schedule"].get(1.0, "end-1c")
+        export_dict["method_of_delivery"] = report_entries["header"]["method_of_delivery"].get(1.0, "end-1c")
+        export_dict["home_recipe"] = report_entries["header"]["home_recipe"].get(1.0, "end-1c")
+        export_dict["fluids"] = report_entries["header"]["fluids"].get(1.0, "end-1c")
+        export_dict["solids"] = report_entries["header"]["solids"].get(1.0, "end-1c")
 
-            # clean dict
-            cleaned_content = {}
-            for key, value in export_dict.items():
-                # keys
-                cleaned_key = key.replace(":", "").replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
+        export_dict["Holliday-Segar_m"] = report_labels["calculations"]["Holliday-Segar"]["maintenance"].cget("text")
+        export_dict["Holliday-Segar_s"] = report_labels["calculations"]["Holliday-Segar"]["sick_day"].cget("text")
+        export_dict["WHO_REE"] = report_labels["calculations"]["WHO_REE"].cget("text")
 
-                # values
-                if cleaned_key in ["Feeding_Schedule", "Method_of_Delivery", "Home_Recipe", "Fluids", "Solids"]:
-                    cleaned_value = value
-                else:
-                    if ":" in value:
-                        cleaned_value = value.split(":", 1)[1].strip()
-                    else:
-                        cleaned_value = value
-                
-                cleaned_content[cleaned_key] = cleaned_value
+        # clean dict
+        cleaned_content = {}
+        for key, value in export_dict.items():
+            cleaned_key = key.replace(":", "").replace(" ", "_").replace("(", "").replace(")", "").replace("-", "_")
+            cleaned_content[cleaned_key] = value.strip() if isinstance(value, str) else value
 
-            # return dict
-            return cleaned_content
-
-        def save_to_db(cnx, report_export):
-            """
-            Saves the report to the database. Helps to format the call to create() correctly.
-            Parameters:
-                * cnx: the connection to the database
-                * report_export: dict, as given by get_report_input()
-            """
-
-            create(cnx, self, "reports", {
-                "MRN": int(report_export["MRN"]),
-                "date": datetime.strptime(report_export["Current_Date"], "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S"),
-                "report": json.dumps(report_export)
-                })
+        return cleaned_content
 
 
 class PageSettings(ttk.Frame):
