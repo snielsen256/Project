@@ -340,7 +340,7 @@ class PageDatabase(ttk.Frame):
     
     def on_add_entry(self, update_mode=False, entry_details=None, primary_key=None, entry_id=None):
         """
-        Show fields for adding or updating an entry, with calendar support for date fields.
+        Show fields for adding or updating an entry, with dropdowns for ENUM fields.
         """
         selected_table = self.table_combobox.get()
         if not selected_table:
@@ -368,13 +368,15 @@ class PageDatabase(ttk.Frame):
                 field_label = ttk.Label(self.entry_display_frame, text=f"{field_name}:")
                 field_label.pack(anchor="w", padx=5, pady=2)
 
-                # Create appropriate input widget
-                if "date" in field_type.lower():
-                    # Use DateEntry for date fields
-                    field_entry = DateEntry(self.entry_display_frame, width=12)
+                # Detect ENUM type and create a dropdown list
+                if "enum" in field_type.lower():
+                    # Extract ENUM values (strip "enum(" and ")")
+                    enum_values = field_type[5:-1].replace("'", "").split(",")
+                    field_entry = ttk.Combobox(self.entry_display_frame, values=enum_values, state="readonly")
+
+                    # Set default value if updating
                     if entry_details and field_name in entry_details:
-                        # Autofill with the existing date value
-                        field_entry.set_date(entry_details[field_name])
+                        field_entry.set(entry_details[field_name])
                 else:
                     # Default to Entry for other types
                     field_entry = ttk.Entry(self.entry_display_frame)
@@ -445,22 +447,19 @@ class PageDatabase(ttk.Frame):
 
     def submit_entry(self, update_mode, table, primary_key=None, entry_id=None):
         """
-        Collect field data and submit to the database.
+        Collect field data and submit to the database
         """
         try:
             field_data = {field: entry.get() for field, entry in self.add_fields.items()}
 
-            # Handle date formatting for date fields
+            # Handle nullable or optional fields (like JSON fields)
             columns = raw_sql(self.cnx, f"DESCRIBE {table}")
             for column in columns.itertuples():
                 field_name = column.Field
-                if "date" in column.Type.lower() and field_name in field_data:
-                    try:
-                        # Convert MM/DD/YY to YYYY-MM-DD
-                        field_data[field_name] = datetime.strptime(field_data[field_name], "%m/%d/%y").strftime("%Y-%m-%d")
-                    except ValueError:
-                        messagebox.showerror("Error", f"Invalid date format for field {field_name}. Please use MM/DD/YY.")
-                        return
+                if "json" in column.Type.lower() and field_name in field_data:
+                    # Set nullable JSON fields to None if empty
+                    if not field_data[field_name].strip():
+                        field_data[field_name] = None
 
             if update_mode:
                 update(self.cnx, self, table, entry_id, field_data)
