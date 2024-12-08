@@ -209,6 +209,16 @@ class PageDatabase(ttk.Frame):
         )
         self.add_button.pack(side="left", padx=10, pady=5)
 
+        self.update_button = ttk.Button(
+            button_frame,
+            text="Update Entry",
+            command=self.on_update_entry,
+            state="disabled",
+            style="TopLeft.TButton",
+            width=len("Update Entry") + 2
+        )
+        self.update_button.pack(side="left", padx=10, pady=5)
+
         self.remove_button = ttk.Button(
             button_frame,
             text="Delete Entry",
@@ -290,14 +300,15 @@ class PageDatabase(ttk.Frame):
 
     def on_entry_selected(self, event):
         """
-        Called when an entry is selected. Update the state of the "Remove" button 
-        and display the selected entry's details.
+        Called when an entry is selected. Updates the state of the 'Delete Entry' and 'Update Entry' buttons
+        and displays the selected entry's details.
         """
         selected_table = self.table_combobox.get()  # Get the selected table
         selected_entry = self.entry_combobox.get()  # Get the selected entry ID
 
         if selected_entry:
-            self.remove_button["state"] = "normal"
+            self.remove_button["state"] = "normal"  # Enable the 'Delete Entry' button
+            self.update_button["state"] = "normal"  # Enable the 'Update Entry' button
 
             # Extract the unique identifier (ID) from the entry (assuming the first column is the ID)
             selected_entry_id = selected_entry.split(" | ")[0]
@@ -307,6 +318,10 @@ class PageDatabase(ttk.Frame):
 
             # Display the details of the selected entry using the correct primary key
             self.display_entry(selected_table, primary_key, selected_entry_id)
+        else:
+            # Disable buttons if no entry is selected
+            self.remove_button["state"] = "disabled"
+            self.update_button["state"] = "disabled"
 
     def display_entry(self, selected_table, primary_key, entry_id):
         """
@@ -323,15 +338,15 @@ class PageDatabase(ttk.Frame):
         for column, value in entry_details.iloc[0].items():
             self.tree.insert("", "end", values=(column, value))
     
-    def on_add_entry(self):
+    def on_add_entry(self, update_mode=False, entry_details=None, primary_key=None, entry_id=None):
         """
-        Called when the 'Add Entry' button is pressed. Show fields for adding a new entry.
+        Show fields for adding or updating an entry, with calendar support for date fields.
         """
         selected_table = self.table_combobox.get()
         if not selected_table:
             return
 
-        # Clear existing widgets in entry display frame
+        # Clear existing widgets in the entry display frame
         for widget in self.entry_display_frame.winfo_children():
             widget.destroy()
 
@@ -339,10 +354,11 @@ class PageDatabase(ttk.Frame):
         columns = raw_sql(self.cnx, f"DESCRIBE {selected_table}")
 
         # Create a label at the top
-        label = ttk.Label(self.entry_display_frame, text="Add New Entry", font=("Calibri", 14, "bold"))
+        label_text = "Update Entry" if update_mode else "Add New Entry"
+        label = ttk.Label(self.entry_display_frame, text=label_text, font=("Calibri", 14, "bold"))
         label.pack(pady=10)
 
-        # For each non-auto-increment field, create an entry widget
+        # Create form fields
         self.add_fields = {}
         for column in columns.itertuples():
             field_name = column.Field
@@ -352,14 +368,19 @@ class PageDatabase(ttk.Frame):
                 field_label = ttk.Label(self.entry_display_frame, text=f"{field_name}:")
                 field_label.pack(anchor="w", padx=5, pady=2)
 
-                # Create appropriate input widgets based on field type
-                if "date" in field_type:
+                # Create appropriate input widget
+                if "date" in field_type.lower():
+                    # Use DateEntry for date fields
                     field_entry = DateEntry(self.entry_display_frame, width=12)
-                elif "int" in field_type:
-                    field_entry = ttk.Spinbox(self.entry_display_frame, from_=0, to=1000)
+                    if entry_details and field_name in entry_details:
+                        # Autofill with the existing date value
+                        field_entry.set_date(entry_details[field_name])
                 else:
+                    # Default to Entry for other types
                     field_entry = ttk.Entry(self.entry_display_frame)
-
+                    if entry_details and field_name in entry_details:
+                        field_entry.insert(0, entry_details[field_name])
+                
                 field_entry.pack(fill="x", padx=5, pady=2)
                 self.add_fields[field_name] = field_entry
 
@@ -370,18 +391,38 @@ class PageDatabase(ttk.Frame):
         submit_button = ttk.Button(
             button_frame,
             text="Submit",
-            style="Home.TButton",  # Match style of the buttons on the home page
-            command=self.submit_new_entry
+            command=lambda: self.submit_entry(update_mode, selected_table, primary_key, entry_id)
         )
         submit_button.pack(side="left", padx=10, ipadx=10)
 
         back_button = ttk.Button(
             button_frame,
             text="Back",
-            style="Home.TButton",  # Match style of the buttons on the home page
             command=self.go_back
         )
         back_button.pack(side="left", padx=10, ipadx=10)
+    
+    def on_update_entry(self):
+        """
+        Triggered when the 'Update Entry' button is pressed.
+        Prepares the form with the selected entry's data.
+        """
+        selected_table = self.table_combobox.get()
+        selected_entry = self.entry_combobox.get()
+
+        if selected_table and selected_entry:
+            # Extract the unique identifier (ID) from the entry
+            selected_entry_id = selected_entry.split(" | ")[0]
+
+            # Get the primary key for the selected table
+            primary_key = get_primary_key(self.cnx, selected_table)
+
+            # Fetch the entry data
+            query = f"SELECT * FROM {selected_table} WHERE {primary_key} = '{selected_entry_id}'"
+            entry_details = pd.read_sql(query, self.cnx).iloc[0].to_dict()
+
+            # Populate the form
+            self.on_add_entry(update_mode=True, entry_details=entry_details, primary_key=primary_key, entry_id=selected_entry_id)
 
     def on_remove_entry(self):
         """
@@ -401,6 +442,37 @@ class PageDatabase(ttk.Frame):
             delete(self.cnx, self, selected_table, selected_entry_id, primary_key)
 
             print(f"Entry {selected_entry_id} removed from {selected_table}")
+
+    def submit_entry(self, update_mode, table, primary_key=None, entry_id=None):
+        """
+        Collect field data and submit to the database.
+        """
+        try:
+            field_data = {field: entry.get() for field, entry in self.add_fields.items()}
+
+            # Handle date formatting for date fields
+            columns = raw_sql(self.cnx, f"DESCRIBE {table}")
+            for column in columns.itertuples():
+                field_name = column.Field
+                if "date" in column.Type.lower() and field_name in field_data:
+                    try:
+                        # Convert MM/DD/YY to YYYY-MM-DD
+                        field_data[field_name] = datetime.strptime(field_data[field_name], "%m/%d/%y").strftime("%Y-%m-%d")
+                    except ValueError:
+                        messagebox.showerror("Error", f"Invalid date format for field {field_name}. Please use MM/DD/YY.")
+                        return
+
+            if update_mode:
+                update(self.cnx, self, table, entry_id, field_data)
+                messagebox.showinfo("Success", f"Entry successfully updated in {table}.")
+            else:
+                create(self.cnx, self, table, field_data)
+                messagebox.showinfo("Success", f"New entry successfully added to {table}.")
+
+            self.go_back()
+        except Exception as e:
+            print(f"Error during submission: {e}")
+            messagebox.showerror("Error", str(e))
 
     def submit_new_entry(self):
         """

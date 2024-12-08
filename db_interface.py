@@ -11,6 +11,8 @@ import pymysql
 import json
 import pandas as pd
 import warnings
+from tkinter import messagebox
+
 # from sqlalchemy import create_engine # imported in start_database
 # from sqlalchemy.exc import SQLAlchemyError, OperationalError # imported in start_database
 # from GUI import show_db_error_popup # imported in start_database
@@ -261,55 +263,39 @@ def read(cnx, table_name:str, select:str = "*", where:str = "*"):
 
 def update(cnx, parent_window, table_name: str, id: int, content: dict):
     """
-    CRUD function. Updates an entry in a table.
-    * Parameters:
-           * cnx - the connection to the database
-           * parent_window: The GUI window, passed to commit_db_changes
-           * table_name: str 
-           * id: int - the id of the entry to update (The primary key, the "{table_name}_id" value)
-           * content: dict - the values to replace. Dict keys are column names, dict values are the replacement values.
-    * Returns: none
+    Updates an entry in a table.
     """
-    # determine the name of the primary key
-    p_key_name = f'{table_name}_id'
+    # Determine the name of the primary key
+    p_key_name = get_primary_key(cnx, table_name)  # Dynamically fetch the primary key column
 
-    if table_name == "Patients":
-        p_key_name = "MRN"
+    # Check for an invalid or empty ID
+    if not p_key_name or id == -1:
+        raise ValueError("Invalid table or ID provided for update.")
 
-    # check for empty table
-    if id == -1:
-        return
-    
-    # convert dict to string
+    # Convert dict to the SQL SET statement format
     set_statement = dict_to_string_Update(content)
 
-    # define query
-    query = (f"""
+    # Define the query
+    query = text(f"""
         UPDATE {table_name} 
         SET {set_statement} 
-        WHERE {p_key_name} = {id};
-        """)
-    
-    # cursor
-    #print(query)
-    with cnx.connect() as connection:
-        connection.execute(query)
-    commit_db_changes(cnx, parent_window)
+        WHERE {p_key_name} = :id
+    """)
 
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
+    # Execute the update query
+    try:
+        with cnx.connect() as connection:
+            # Start a transaction
+            connection.execution_options(isolation_level="AUTOCOMMIT")  # Ensures immediate commit
+            print(f"Executing query: {query}, with ID: {id} and content: {content}")
+            connection.execute(query, {"id": id})  # Pass parameters to prevent SQL injection
 
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from tkinter import messagebox
-
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from tkinter import messagebox
-
-from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from tkinter import messagebox
+            # Explicitly commit changes
+            connection.commit()
+            print(f"Entry with ID {id} updated successfully in table {table_name}.")
+    except Exception as e:
+        print(f"Error during update operation: {e}")
+        raise
 
 def delete(cnx, parent_window, table_name: str, entry_id: int, primary_key: str):
     delete_query = text(f"""
