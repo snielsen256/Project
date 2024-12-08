@@ -6,6 +6,7 @@ Holds all the functions for interfacing with the database
 # from GUI import confirm_commit_popup # imported in commit_db_changes
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from sqlalchemy.orm import Session
 import pymysql
 import json
 import pandas as pd
@@ -107,26 +108,38 @@ def start_database(config):
 
 def commit_db_changes(cnx, parent_window):
     """
-    Commits changes to the database.
+    Prompts the user to confirm committing database changes and commits them if confirmed.
 
     * Parameters:
-           * cnx - the connection to the database
-           * parent_window - the parent of the popup window
-    * Returns: none
+        * cnx - the connection to the database (raw connection or session)
+        * parent_window - the parent of the popup window
+    * Returns: bool - True if committed, False otherwise
     """
     from GUI import confirm_commit_popup
 
     # Call the confirmation popup function
     confirm = confirm_commit_popup(parent_window)
 
-    # If confirmed, commit the changes
     if confirm:
-        with cnx.connect() as connection:
-            connection.execution_options(isolation_level="AUTOCOMMIT")
-            connection.commit()
-        print("Changes committed.")
+        try:
+            if isinstance(cnx, Session):
+                # Commit using SQLAlchemy session
+                cnx.commit()
+                print("Changes successfully committed via session.")
+            else:
+                # Commit using raw connection
+                with cnx.connect() as connection:
+                    connection.commit()
+                print("Changes successfully committed via raw connection.")
+            return True
+        except Exception as e:
+            print(f"Error committing changes: {e}")
+            raise
     else:
-        print("Not committed.")
+        # User cancels commit
+        print("Commit cancelled by the user.")
+        return False
+
 
 def close_database(cnx):
     """
@@ -187,30 +200,33 @@ def update_config(settings):
 
 # CRUD functions ------------------------   
 def create(cnx, parent_window, table_name: str, content: dict):
-    """
-    CRUD function. Creates a new entry in a table.
-    * Parameters:
-           * cnx - the connection to the database
-           * parent_window: The GUI window, passed to commit_db_changes
-           * table_name: str 
-           * content: dict - contains the column names as keys, and the column content as values.
-    * Returns: none
-    """
-
-    # Escape column names with backticks and prepare values with placeholders
     col_names = ", ".join(f"`{col}`" for col in content.keys())
     placeholders = ", ".join([f":{col}" for col in content.keys()])
 
-    # Use `text` to ensure SQLAlchemy treats the query as an executable statement
     query = text(f"""
         INSERT INTO {table_name} ({col_names}) 
         VALUES ({placeholders})
     """)
-    
-    # Execute the query using the values in `content`
-    with cnx.connect() as connection:
-        connection.execute(query, content)
-        commit_db_changes(cnx, parent_window)
+
+    try:
+        with cnx.connect() as connection:
+            # Debugging: Print query and content
+            print(f"Executing query: {query}")
+            print(f"With data: {content}")
+            
+            # Execute the insert query
+            connection.execute(query, content)
+            
+            # Manually commit the transaction
+            connection.commit()
+            
+            # Proceed with commit confirmation
+            commit_db_changes(cnx, parent_window)
+            print("Entry successfully inserted.")
+    except Exception as e:
+        print(f"Error during create function: {e}")
+        messagebox.showerror("Database Error", f"An error occurred while inserting the entry: {str(e)}")
+        raise
 
 def read(cnx, table_name:str, select:str = "*", where:str = "*"):
     """
@@ -280,33 +296,63 @@ def update(cnx, parent_window, table_name: str, id: int, content: dict):
         connection.execute(query)
     commit_db_changes(cnx, parent_window)
 
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from tkinter import messagebox
+
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from tkinter import messagebox
+
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from tkinter import messagebox
+
 def delete(cnx, parent_window, table_name: str, entry_id: int, primary_key: str):
-    """
-    CRUD function. Deletes an entry in a table based on the primary key.
-    * Parameters:
-           * cnx - the connection to the database
-           * parent_window: The GUI window, passed to commit_db_changes
-           * table_name: str - the name of the table from which to delete the entry
-           * entry_id: int - the id of the entry to delete (the primary key value)
-           * primary_key: str - the name of the primary key column
-    * Returns: none
-    """
-    # Define query using the correct primary key column
-    query = (f"""
+    delete_query = text(f"""
         DELETE FROM {table_name} 
-        WHERE {primary_key} = {entry_id};
-        """)
-    
-    # Execute query
-    with cnx.connect() as connection:
-        connection.execute(query)
-    commit_db_changes(cnx, parent_window)
-    
-    # # cursor
-    # #print(query)
-    # cursor1 = cnx.cursor()
-    # cursor1.execute(query)
-    # commit_db_changes(cnx, parent_window)
+        WHERE {primary_key} = :entry_id;
+    """)
+
+    verify_query = text(f"""
+        SELECT 1 FROM {table_name} 
+        WHERE {primary_key} = :entry_id;
+    """)
+
+    try:
+        with cnx.connect() as connection:
+            connection.execution_options(isolation_level="AUTOCOMMIT")  # Ensure immediate commit
+
+            # Debugging: Log queries and parameters
+            print(f"Executing DELETE query: {delete_query}, Parameters: {{entry_id: {entry_id}}}")
+            result = connection.execute(delete_query, {"entry_id": entry_id})
+            print(f"Rows affected by DELETE: {result.rowcount}")
+
+            if result.rowcount == 0:
+                raise ValueError(f"Entry with ID {entry_id} does not exist in {table_name}.")
+
+            # Verify deletion
+            print(f"Executing VERIFY query: {verify_query}, Parameters: {{entry_id: {entry_id}}}")
+            verify_result = connection.execute(verify_query, {"entry_id": entry_id}).fetchone()
+            print(f"Verification result: {verify_result}")
+
+            if verify_result is None:
+                # Successful deletion
+                if commit_db_changes(cnx, parent_window):
+                    print(f"Entry {entry_id} successfully deleted from {table_name}.")
+                    messagebox.showinfo("Success", f"Entry with ID {entry_id} deleted successfully.")
+                else:
+                    print("Deletion not committed by user.")
+            else:
+                raise ValueError(f"Failed to delete entry with ID {entry_id} from {table_name}.")
+
+    except Exception as e:
+        print(f"Error during delete operation: {e}")
+        messagebox.showerror("Error", f"Failed to delete entry: {str(e)}")
+
 
 # Supporting functions ------------------------------
 def get_table_names(cnx, config):

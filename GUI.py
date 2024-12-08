@@ -16,10 +16,11 @@ class MultiPageApp(tk.Tk):
 
         # define starting window dimensions
         page_width = 800
-        page_height = 600
+        page_height = 900
 
         self.title("SuppliCore - Nutrition and Supplement Database Manager")
         self.geometry(f"{page_width}x{page_height}")
+        self.state('zoomed')
 
         # Create the container frame
         self.container = ttk.Frame(self)
@@ -337,34 +338,50 @@ class PageDatabase(ttk.Frame):
         # Fetch the structure of the selected table to display fields
         columns = raw_sql(self.cnx, f"DESCRIBE {selected_table}")
 
+        # Create a label at the top
+        label = ttk.Label(self.entry_display_frame, text="Add New Entry", font=("Calibri", 14, "bold"))
+        label.pack(pady=10)
+
         # For each non-auto-increment field, create an entry widget
         self.add_fields = {}
         for column in columns.itertuples():
             field_name = column.Field
             field_type = column.Type
 
-            if "auto_increment" not in column.Extra or field_name == "patient_id":
-                label = ttk.Label(self.entry_display_frame, text=f"{field_name}:")
-                label.pack(side="top", anchor=tk.W)
-                
+            if "auto_increment" not in column.Extra:
+                field_label = ttk.Label(self.entry_display_frame, text=f"{field_name}:")
+                field_label.pack(anchor="w", padx=5, pady=2)
+
                 # Create appropriate input widgets based on field type
                 if "date" in field_type:
-                    entry = DateEntry(self.entry_display_frame, width=12)
+                    field_entry = DateEntry(self.entry_display_frame, width=12)
                 elif "int" in field_type:
-                    entry = ttk.Spinbox(self.entry_display_frame, from_=0, to=1000)  # Example for integer field
+                    field_entry = ttk.Spinbox(self.entry_display_frame, from_=0, to=1000)
                 else:
-                    entry = ttk.Entry(self.entry_display_frame)
+                    field_entry = ttk.Entry(self.entry_display_frame)
 
-                entry.pack(side="top", fill="x", padx=5, pady=2)
-                self.add_fields[field_name] = entry
+                field_entry.pack(fill="x", padx=5, pady=2)
+                self.add_fields[field_name] = field_entry
 
-        # Add Submit button
-        submit_button = ttk.Button(self.entry_display_frame, text="Submit", command=self.submit_new_entry)
-        submit_button.pack(side="left", pady=10, padx=5)
+        # Buttons for submit and back
+        button_frame = ttk.Frame(self.entry_display_frame)
+        button_frame.pack(pady=10)
 
-        # Add Back button to return to the previous page
-        back_button = ttk.Button(self.entry_display_frame, text="Back", command=self.go_back)
-        back_button.pack(side="left", pady=10, padx=5)
+        submit_button = ttk.Button(
+            button_frame,
+            text="Submit",
+            style="Home.TButton",  # Match style of the buttons on the home page
+            command=self.submit_new_entry
+        )
+        submit_button.pack(side="left", padx=10, ipadx=10)
+
+        back_button = ttk.Button(
+            button_frame,
+            text="Back",
+            style="Home.TButton",  # Match style of the buttons on the home page
+            command=self.go_back
+        )
+        back_button.pack(side="left", padx=10, ipadx=10)
 
     def on_remove_entry(self):
         """
@@ -387,20 +404,47 @@ class PageDatabase(ttk.Frame):
 
     def submit_new_entry(self):
         """
-        Called when the user submits the new entry.
+        Collects field data and submits it to the database.
         """
         selected_table = self.table_combobox.get()
-
         if not selected_table:
+            messagebox.showerror("Error", "No table selected.")
             return
 
-        # Collect data from the entry fields
-        field_data = {field: entry.get() for field, entry in self.add_fields.items()}
+        try:
+            # Gather data from input fields
+            field_data = {field: entry.get() for field, entry in self.add_fields.items()}
 
-        # Use the create function to insert the new entry into the database
-        create(self.cnx, self, selected_table, field_data)
-        
-        print(f"New entry added to {selected_table}")
+            # Debug: Print the raw collected data
+            print(f"Collected field data: {field_data}")
+
+            # Convert date fields to the correct format
+            if "DOB" in field_data:
+                try:
+                    dob = field_data["DOB"]
+                    # Convert to MySQL-compatible format
+                    dob_formatted = datetime.strptime(dob, "%m/%d/%y").strftime("%Y-%m-%d")
+                    field_data["DOB"] = dob_formatted
+                except ValueError:
+                    messagebox.showerror("Invalid Date", f"Invalid date format for 'DOB': {dob}. Expected MM/DD/YY.")
+                    return
+
+            # Debug: Print the prepared field data
+            print(f"Final field data (after formatting): {field_data}")
+
+            # Call the `create` function to insert data into the database
+            create(self.cnx, self, selected_table, field_data)
+            
+            # Check if commit was successful
+            messagebox.showinfo("Success", f"New entry successfully added to {selected_table}.")
+
+            # Return to the database view page
+            self.go_back()
+
+        except Exception as e:
+            # Debug: Print detailed error
+            print(f"Error during submission: {e}")
+            messagebox.showerror("Error", f"An error occurred while adding the entry: {str(e)}")
 
     def go_back(self):
         """
@@ -636,7 +680,6 @@ class PageReportEditing(ttk.Frame):
             cleaned_content[cleaned_key] = value.strip() if isinstance(value, str) else value
 
         return cleaned_content
-
 
 class PageSettings(ttk.Frame):
     def __init__(self, parent, controller, cnx):
