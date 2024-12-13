@@ -645,7 +645,7 @@ class PageReportEditing(ttk.Frame):
         """
         create(cnx, self, "reports", {
             "MRN": int(report_export["MRN"]),
-            "date": datetime.strptime(report_export["Current_Date"], "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S"),
+            "date": datetime.strptime(report_export["current_date"], "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S"),
             "report": json.dumps(report_export)
         })
 
