@@ -227,7 +227,7 @@ def save_report_JSON(report: dict):
         filename = f"report_out/{report['header']['MRN']}-({report['header']['current_date']}).json"
     except:
         # if it comes from the GUI
-        filename = f"report_out/{report['MRN']}-({report['Current_Date']}).json"
+        filename = f"report_out/{report['MRN']}-({report['current_date']}).json"
         print(report)
 
 
