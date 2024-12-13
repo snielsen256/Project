@@ -46,81 +46,45 @@ def test_fill(cnx):
 
 def main():
     from GUI import MultiPageApp
+    import os
+    import sys
 
-    # Load config (login information)
-    config = load_config()
-    print("Config loaded")
+    try:
+        # Load config (login information)
+        if not os.path.exists("config.json"):
+            raise FileNotFoundError("config.json not found. Using default configuration.")
+        config = load_config()
+        print("Config loaded")
 
-    # start database
-    cnx = start_database(config)
-    print("Database started")
-    #test_fill(cnx)
-    
-    # open GUI
-    app = MultiPageApp(cnx)
-    app.mainloop()
-
-    
-    """
-    # Text navigation made redundant by GUI
-
-    # user choice
-    in_main_loop = True
-    while in_main_loop:
-        
-        # user input
-        print("--------------------")
-        print("What would you like to do?")
-        user_input = input("1) Exit 2) Create 3) Read 4) Update 5) Delete 6) Generate report: ")
-        print()
+        # Start database
         try:
-            user_input = int(user_input)
-        except:
-            print("Invalid input.")
-            continue
+            cnx = start_database(config)
+            print("Database started")
+        except Exception as db_error:
+            print(f"Database connection failed: {db_error}")
+            cnx = None  # Proceed with no database connection
         
-        # choice
-        match user_input:
-            case 1:#if exit
-                print("Exiting")
-                in_main_loop = False
-                break
-            case 2:# if create
-                test_fill(cnx)
-            case 3:# if read
-                returned = read(cnx, get_table_names_interface(cnx, config))
-                if returned.empty:
-                    print("Table is empty")
-                else:
-                    print(returned)
-            case 4:# if update
-                pass
-                #update(cnx, test_tablename, get_table_items_interface(cnx, test_tablename), test_dict_2)
-            case 5:# if delete
-                tablename = get_table_names_interface(cnx, config)
-                item_id = get_table_items_interface(cnx, tablename)
-                if item_id == 0:
-                    continue
-                delete(cnx, tablename, item_id)
-            case 6:# if generate report
-                patient_MRN = get_table_items_interface(cnx, "Patients")
-                report = generate_report(cnx, patient_MRN)
-                print(report)
-                user_input = input("Would you like to save this report? (y/n): ")
-                if user_input[:1].lower() == "y":
-                    save_report_JSON(report)
-                else:
-                    print("Not saved.")
-            case _:# else
-                print("Invalid input.")
-                continue
-        """
+        # Open GUI
+        print("Starting GUI...")
+        app = MultiPageApp(cnx)  # Ensure MultiPageApp can handle cnx=None
+        app.mainloop()
+        
+        # Close database if connected
+        if cnx:
+            close_database(cnx)
+            print("Database closed")
+    except FileNotFoundError as fnf_error:
+        print(f"Error: {fnf_error}")
+        print("Running in limited mode.")
+        # Add logic for GUI in limited mode
+        app = MultiPageApp(None)  # Initialize GUI without a database connection
+        app.mainloop()
+    except Exception as e:
+        print(f"Unhandled error: {e}")
+        input("Press Enter to exit...")
+        sys.exit(1)
 
-    # close database
-    close_database(cnx)
-    print("Database closed")
-
-    # end program
+    # End program
     print("TERMINATED")
     
 def generate_report(cnx, patient_MRN: int):
@@ -270,5 +234,10 @@ def calculate_age(DOB: datetime, curr_date: datetime):
     # Default to returning age in years
     return {"age": years, "age_unit": "years"}
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:
+        print(f"Unhandled error: {e}")
+        input("Press Enter to exit...")  # Keep the command window open after a crash
+        sys.exit(1)

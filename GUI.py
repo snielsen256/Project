@@ -14,7 +14,7 @@ class MultiPageApp(tk.Tk):
         super().__init__()
         self.cnx = cnx
 
-        # define starting window dimensions
+        # Define starting window dimensions
         page_width = 800
         page_height = 900
 
@@ -33,7 +33,8 @@ class MultiPageApp(tk.Tk):
         self.frames = {}
         for F in (HomePage, PageDatabase, PageReportEditing, PageSettings):
             page_name = F.__name__
-            frame = F(parent=self.container, controller=self, cnx=self.cnx)
+            # Pass None for `cnx` if it's not available
+            frame = F(parent=self.container, controller=self, cnx=self.cnx if self.cnx else None)
             self.frames[page_name] = frame
 
             # Initially hide all frames
@@ -41,6 +42,19 @@ class MultiPageApp(tk.Tk):
 
         # Show the HomePage by default
         self.show_frame("HomePage")
+
+        # Notify the user if running in limited mode
+        if not self.cnx:
+            self.show_limited_mode_message()
+
+    def show_limited_mode_message(self):
+        """
+        Notify the user that the application is running without a database connection.
+        """
+        messagebox.showwarning(
+            "Limited Mode",
+            "Can't connect to the database. Reports can still be made, but autofill is disabled."
+        )
 
     def show_frame(self, page_name):
         """
