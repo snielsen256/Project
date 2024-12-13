@@ -222,6 +222,8 @@ def save_report_JSON(report: dict):
            * report: dict - The report, as outputted by generate_report()
     * Returns: None 
     """
+    from GUI import save_info_popup
+    
     try:
         # if it comes from generate_report()
         filename = f"report_out/{report['header']['MRN']}-({report['header']['current_date']}).json"
@@ -234,6 +236,7 @@ def save_report_JSON(report: dict):
     with open(filename, "w") as file: 
         json.dump(report, file)
 
+    save_info_popup(info_text=f"Saved as {filename}")
     print(f"Saved as {filename}")
 
 def calculate_age(DOB: datetime, curr_date: datetime):

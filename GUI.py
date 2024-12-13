@@ -607,8 +607,8 @@ class PageReportEditing(ttk.Frame):
         self.create_text_entry("header", "home_recipe", "Home Recipe:", report_labels=report_labels, report_entries=report_entries)
         self.create_text_entry("header", "fluids", "Fluids:", report_labels=report_labels, report_entries=report_entries)
         self.create_text_entry("header", "solids", "Solids:", report_labels=report_labels, report_entries=report_entries)
-        self.create_label("calculations", "Holliday-Segar", "maintenance", label_text="Maintenance:", report_labels=report_labels)
-        self.create_label("calculations", "Holliday-Segar", "sick_day", label_text="Sick Day:", report_labels=report_labels)
+        self.create_label("calculations", "Holliday-Segar", "maintenance", label_text="Holliday-Segar - Maintenance:", report_labels=report_labels)
+        self.create_label("calculations", "Holliday-Segar", "sick_day", label_text="Holliday-Segar - Sick Day:", report_labels=report_labels)
         self.create_label("calculations", "WHO_REE", label_text="WHO REE:", report_labels=report_labels)
 
 
@@ -648,6 +648,8 @@ class PageReportEditing(ttk.Frame):
             "date": datetime.strptime(report_export["current_date"], "%Y-%m-%d").strftime("%Y-%m-%d %H:%M:%S"),
             "report": json.dumps(report_export)
         })
+
+        save_info_popup(info_text=f"Saved to database")
 
     def create_scrollable(self, parent):
         """
@@ -1039,6 +1041,18 @@ def confirm_commit_popup(parent_window=None):
     """
     return messagebox.askyesno("Commit Changes", "Are you sure you want to commit these changes?", parent=parent_window)
 
+def save_info_popup(parent_window=None, info_text=""):
+    """
+    Shows a popup showing information about where a file was saved.
+
+    * Parameters:
+        * parent_window - (Optional) the parent window for the popup
+        * info_text - The text shown in the popup
+    * Returns: 
+        * bool - True if confirmed, False otherwise
+    """
+    return messagebox.showinfo("Saved", info_text, parent=parent_window)
+    
 def show_db_error_popup(error_type, err=None):
     """
     Shows GUI popups based on the error type during database connection.
