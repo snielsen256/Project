@@ -584,14 +584,22 @@ class PageReportEditing(ttk.Frame):
         # Create scrollable frame
         self.scrollable_frame = self.create_scrollable(content_frame)
 
-        
-        report_labels = {"header": {}, "calculations": {"Holliday-Segar": {}, "WHO_REE": {}}}
+        # Initialize report_labels correctly
+        report_labels = {
+            "header": {},
+            "calculations": {
+                "Holliday-Segar": {},
+                "WHO_REE": {}
+            }
+        }
         report_entries = {"header": {}, "calculations": {}}
 
+        # Populate the GUI
         self.create_entry("header", "MRN", "MRN:", report_labels=report_labels, report_entries=report_entries)
         self.create_entry("header", "name", "Patient Name:", report_labels=report_labels, report_entries=report_entries)
         self.create_entry("header", "sex", "Sex:", report_labels=report_labels, report_entries=report_entries)
         self.create_entry("header", "DOB", "DOB:", report_labels=report_labels, report_entries=report_entries)
+        self.create_label("header", "age", "Age:", report_labels=report_labels)
         self.create_entry("header", "current_date", "Current Date:", report_labels=report_labels, report_entries=report_entries)
         self.create_entry("header", "weight_kg", "Weight (kg):", entry_type="spinbox", report_labels=report_labels, report_entries=report_entries)
         self.create_text_entry("header", "feeding_schedule", "Feeding Schedule:", report_labels=report_labels, report_entries=report_entries)
@@ -599,6 +607,8 @@ class PageReportEditing(ttk.Frame):
         self.create_text_entry("header", "home_recipe", "Home Recipe:", report_labels=report_labels, report_entries=report_entries)
         self.create_text_entry("header", "fluids", "Fluids:", report_labels=report_labels, report_entries=report_entries)
         self.create_text_entry("header", "solids", "Solids:", report_labels=report_labels, report_entries=report_entries)
+        self.create_label("calculations", "maintenance", "Maintenance:", report_labels["calculations"]["Holliday-Segar"])
+        self.create_label("calculations", "sick_day", "Sick Day:", report_labels["calculations"]["Holliday-Segar"])
 
 
         # Add Fetch and Save buttons
@@ -676,6 +686,29 @@ class PageReportEditing(ttk.Frame):
         report_labels[section][field_name].pack(anchor=tk.W, pady=5)
         report_entries[section][field_name].pack(anchor=tk.W, pady=5)
 
+    def create_label(self, section, field_name, label_text, report_labels):
+        """
+        Creates labels without corresponding input fields, for display-only data.
+        Ensures that the nested keys exist in the dictionary before adding the label.
+        
+        Parameters:
+            - section: str - The top-level section name in report_labels
+            - field_name: str - The specific field name for the label
+            - label_text: str - The text to display in the label
+            - report_labels: dict - The dictionary holding references to labels
+        """
+        # Ensure the section exists in report_labels
+        if section not in report_labels:
+            report_labels[section] = {}
+
+        # Ensure the field exists in the specified section
+        if isinstance(report_labels[section], dict) and field_name not in report_labels[section]:
+            report_labels[section][field_name] = {}
+
+        # Create and pack the label
+        report_labels[section][field_name] = ttk.Label(self.scrollable_frame, text=label_text)
+        report_labels[section][field_name].pack(anchor=tk.W, pady=5)
+
     def create_text_entry(self, section, field_name, label_text, report_labels=None, report_entries=None):
         """
         Creates text widgets for each report section.
@@ -692,27 +725,50 @@ class PageReportEditing(ttk.Frame):
 
     def fetch(self, cnx, report_labels, report_entries):
         """
-        Called when 'fetch patient details' button is pushed
+        Fetch patient details and fill the report.
+        
         Parameters:
-            * cnx: the connection to the database
-            * report_labels: dict of tk labels
-            * report_entries: dict of tk entries
+            - cnx: Database connection
+            - report_labels: Dictionary of Tkinter label widgets
+            - report_entries: Dictionary of Tkinter entry widgets
+        
         Returns:
-            * dict: the report dict
+            - dict: The filled report.
         """
-        # fill report fields
-        report = fill_report(cnx, report_labels, report_entries)
+        try:
+            # Fetch the MRN and generate the report
+            report = fill_report(cnx, report_labels, report_entries)
 
-        # calculate age
-        age_dict = calculate_age(
-            datetime.strptime(report_entries["header"]["DOB"].get(), "%Y-%m-%d"),
-            datetime.strptime(report_entries["header"]["current_date"].get(), "%Y-%m-%d")
-        )
+            # Validate and parse the current_date field
+            current_date = report_entries["header"]["current_date"].get().strip()
+            if not current_date:
+                # Use today's date as a default
+                current_date = datetime.now().strftime("%Y-%m-%d")
+                report_entries["header"]["current_date"].delete(0, "end")
+                report_entries["header"]["current_date"].insert(0, current_date)
+            
+            # Ensure the date format is correct
+            current_date_obj = datetime.strptime(current_date, "%Y-%m-%d")
 
-        # fill age field
-        report_labels["header"]["age"].config(text=f"       Age: {age_dict['age']} {age_dict['age_unit']}")
+            # Validate and parse the DOB field
+            dob = report_entries["header"]["DOB"].get().strip()
+            if not dob:
+                raise ValueError("Date of Birth (DOB) is missing.")
+            dob_obj = datetime.strptime(dob, "%Y-%m-%d")
 
-        return report
+            # Calculate age and update the label
+            age_dict = calculate_age(dob_obj, current_date_obj)
+            report_labels["header"]["age"].config(
+                text=f"Age: {age_dict['age']} {age_dict['age_unit']}"
+            )
+
+            return report
+
+        except ValueError as e:
+            # Display an error message for invalid date formats or missing dates
+            messagebox.showerror("Invalid Input", str(e))
+            print(f"Error: {e}")
+
 
     def get_report_input(self, cnx, report_labels, report_entries):
         """
@@ -937,39 +993,51 @@ def apply_settings(settings_entries):
 
 def fill_report(cnx, report_labels, report_entries):
     """
-    Fill report entries with values from database based on the MRN
-    * Parameters:
-        * cnx: connection to the database
-        * report_labels: dict of tk labels
-        * report_entries: dict of tk entries
-    * Returns: 
-        dict: the report dict
+    Fills report entries with values from the database based on the MRN.
+    
+    Parameters:
+        - cnx: Database connection
+        - report_labels: Dictionary of Tkinter label widgets
+        - report_entries: Dictionary of Tkinter entry widgets
+    
+    Returns:
+        - dict: The generated report
     """
-
-    # get data from database
+    # Get MRN from the report entries
     mrn = report_entries["header"]["MRN"].get()
-    #patient_data = read(cnx, "Patients", "*", f"MRN = '{mrn}'").iloc[0].to_dict()
+
+    # Generate the report
     patient_report = generate_report(cnx, mrn)
-    #print(patient_data)
 
-    # erase current fields
-    report_entries["header"]["name"].delete(0, "end")
-    report_entries["header"]["DOB"].delete(0, "end")
-    report_entries["header"]["sex"].delete(0, "end")
-    report_entries["header"]["weight_kg"].delete(0, "end")
+    # Ensure all necessary keys in report_labels exist
+    report_labels.setdefault("calculations", {})
+    report_labels["calculations"].setdefault("Holliday-Segar", {})
+    report_labels["calculations"].setdefault("WHO_REE", {})
 
-    # extract relevant data from patient_data
-    report_entries["header"]["name"].insert(0, f"{patient_report['header']['name']}")
-    report_entries["header"]["DOB"].insert(0, patient_report['header']["DOB"])
-    report_entries["header"]["sex"].insert(0, patient_report['header']["sex"])
-    report_entries["header"]["weight_kg"].insert(0, patient_report['header']["weight_kg"])
+    # Fill header fields
+    for field in ["name", "DOB", "sex", "weight_kg"]:
+        report_entries["header"][field].delete(0, "end")
+        report_entries["header"][field].insert(0, patient_report["header"].get(field, ""))
 
-    # fill fields that depend on patient data
-    report_labels["calculations"]["Holliday-Segar"]["maintenance"].config(text=f"   Maintenance: {patient_report['calculations']['Holliday-Segar']['maintenance']}")
-    report_labels["calculations"]["Holliday-Segar"]["sick_day"].config(text=f"   Sick Day: {patient_report['calculations']['Holliday-Segar']['sick_day']}")
-    report_labels["calculations"]["WHO_REE"].config(text=f"WHO_REE: {patient_report['calculations']['WHO_REE']}")
+    # Handle age label
+    age_text = f"Age: {patient_report['header'].get('age', 'N/A')} {patient_report['header'].get('age_unit', '')}"
+    report_labels["header"]["age"].config(text=age_text)
+
+    # Fill Holliday-Segar calculations
+    hs_maintenance = patient_report["calculations"]["Holliday-Segar"].get("maintenance", "N/A")
+    hs_sick_day = patient_report["calculations"]["Holliday-Segar"].get("sick_day", "N/A")
+    report_labels["calculations"]["Holliday-Segar"].setdefault("maintenance", ttk.Label())
+    report_labels["calculations"]["Holliday-Segar"]["maintenance"].config(text=f"Maintenance: {hs_maintenance}")
+    report_labels["calculations"]["Holliday-Segar"].setdefault("sick_day", ttk.Label())
+    report_labels["calculations"]["Holliday-Segar"]["sick_day"].config(text=f"Sick Day: {hs_sick_day}")
+
+    # Fill WHO_REE calculation
+    who_ree = patient_report["calculations"].get("WHO_REE", "N/A")
+    report_labels["calculations"]["WHO_REE"].setdefault("label", ttk.Label())
+    report_labels["calculations"]["WHO_REE"]["label"].config(text=f"WHO_REE: {who_ree}")
 
     return patient_report
+
 
 def confirm_commit_popup(parent_window=None):
     """
