@@ -45,3 +45,4 @@
 * Add ability to edit associations between supplements and conditions
 * Add more scroll bars, and link them (and existing ones) to the mouse wheel.
 * Add icon and logo on home page
+* Fix calculation labels becoming worse when patient details are fetched
