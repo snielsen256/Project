@@ -599,7 +599,7 @@ class PageReportEditing(ttk.Frame):
         self.create_entry("header", "name", "Patient Name:", report_labels=report_labels, report_entries=report_entries)
         self.create_entry("header", "sex", "Sex:", report_labels=report_labels, report_entries=report_entries)
         self.create_entry("header", "DOB", "DOB:", report_labels=report_labels, report_entries=report_entries)
-        self.create_label("header", "age", "Age:", report_labels=report_labels)
+        self.create_label("header", "age", label_text="Age:", report_labels=report_labels)
         self.create_entry("header", "current_date", "Current Date:", report_labels=report_labels, report_entries=report_entries)
         self.create_entry("header", "weight_kg", "Weight (kg):", entry_type="spinbox", report_labels=report_labels, report_entries=report_entries)
         self.create_text_entry("header", "feeding_schedule", "Feeding Schedule:", report_labels=report_labels, report_entries=report_entries)
@@ -607,8 +607,9 @@ class PageReportEditing(ttk.Frame):
         self.create_text_entry("header", "home_recipe", "Home Recipe:", report_labels=report_labels, report_entries=report_entries)
         self.create_text_entry("header", "fluids", "Fluids:", report_labels=report_labels, report_entries=report_entries)
         self.create_text_entry("header", "solids", "Solids:", report_labels=report_labels, report_entries=report_entries)
-        self.create_label("calculations", "maintenance", "Maintenance:", report_labels["calculations"]["Holliday-Segar"])
-        self.create_label("calculations", "sick_day", "Sick Day:", report_labels["calculations"]["Holliday-Segar"])
+        self.create_label("calculations", "Holliday-Segar", "maintenance", label_text="Maintenance:", report_labels=report_labels)
+        self.create_label("calculations", "Holliday-Segar", "sick_day", label_text="Sick Day:", report_labels=report_labels)
+        self.create_label("calculations", "WHO_REE", label_text="WHO REE:", report_labels=report_labels)
 
 
         # Add Fetch and Save buttons
@@ -686,28 +687,28 @@ class PageReportEditing(ttk.Frame):
         report_labels[section][field_name].pack(anchor=tk.W, pady=5)
         report_entries[section][field_name].pack(anchor=tk.W, pady=5)
 
-    def create_label(self, section, field_name, label_text, report_labels):
+    def create_label(self, *keys, label_text, report_labels):
         """
         Creates labels without corresponding input fields, for display-only data.
-        Ensures that the nested keys exist in the dictionary before adding the label.
-        
-        Parameters:
-            - section: str - The top-level section name in report_labels
-            - field_name: str - The specific field name for the label
-            - label_text: str - The text to display in the label
-            - report_labels: dict - The dictionary holding references to labels
-        """
-        # Ensure the section exists in report_labels
-        if section not in report_labels:
-            report_labels[section] = {}
+        Ensures that nested keys exist in the dictionary before adding the label.
 
-        # Ensure the field exists in the specified section
-        if isinstance(report_labels[section], dict) and field_name not in report_labels[section]:
-            report_labels[section][field_name] = {}
+        Parameters:
+            - *keys: str - The hierarchical keys leading to the label location.
+            - label_text: str - The text to display in the label.
+            - report_labels: dict - The dictionary holding references to labels.
+        """
+        # Navigate or create nested dictionary structure
+        current_level = report_labels
+        for key in keys[:-1]:  # Traverse all keys except the last
+            current_level = current_level.setdefault(key, {})
+
+        # Ensure the final key exists
+        field_name = keys[-1]
+        current_level.setdefault(field_name, None)
 
         # Create and pack the label
-        report_labels[section][field_name] = ttk.Label(self.scrollable_frame, text=label_text)
-        report_labels[section][field_name].pack(anchor=tk.W, pady=5)
+        current_level[field_name] = ttk.Label(self.scrollable_frame, text=label_text)
+        current_level[field_name].pack(anchor=tk.W, pady=5)
 
     def create_text_entry(self, section, field_name, label_text, report_labels=None, report_entries=None):
         """
@@ -1003,38 +1004,26 @@ def fill_report(cnx, report_labels, report_entries):
     Returns:
         - dict: The generated report
     """
-    # Get MRN from the report entries
     mrn = report_entries["header"]["MRN"].get()
-
-    # Generate the report
     patient_report = generate_report(cnx, mrn)
-
-    # Ensure all necessary keys in report_labels exist
-    report_labels.setdefault("calculations", {})
-    report_labels["calculations"].setdefault("Holliday-Segar", {})
-    report_labels["calculations"].setdefault("WHO_REE", {})
 
     # Fill header fields
     for field in ["name", "DOB", "sex", "weight_kg"]:
         report_entries["header"][field].delete(0, "end")
         report_entries["header"][field].insert(0, patient_report["header"].get(field, ""))
 
-    # Handle age label
+    # Age Label
     age_text = f"Age: {patient_report['header'].get('age', 'N/A')} {patient_report['header'].get('age_unit', '')}"
     report_labels["header"]["age"].config(text=age_text)
 
-    # Fill Holliday-Segar calculations
-    hs_maintenance = patient_report["calculations"]["Holliday-Segar"].get("maintenance", "N/A")
-    hs_sick_day = patient_report["calculations"]["Holliday-Segar"].get("sick_day", "N/A")
-    report_labels["calculations"]["Holliday-Segar"].setdefault("maintenance", ttk.Label())
-    report_labels["calculations"]["Holliday-Segar"]["maintenance"].config(text=f"Maintenance: {hs_maintenance}")
-    report_labels["calculations"]["Holliday-Segar"].setdefault("sick_day", ttk.Label())
-    report_labels["calculations"]["Holliday-Segar"]["sick_day"].config(text=f"Sick Day: {hs_sick_day}")
+    # Calculations
+    hs_maintenance = patient_report["calculations"]["Holliday-Segar"]["maintenance"]
+    hs_sick_day = patient_report["calculations"]["Holliday-Segar"]["sick_day"]
+    who_ree = patient_report["calculations"]["WHO_REE"]
 
-    # Fill WHO_REE calculation
-    who_ree = patient_report["calculations"].get("WHO_REE", "N/A")
-    report_labels["calculations"]["WHO_REE"].setdefault("label", ttk.Label())
-    report_labels["calculations"]["WHO_REE"]["label"].config(text=f"WHO_REE: {who_ree}")
+    report_labels["calculations"]["Holliday-Segar"]["maintenance"].config(text=f"Maintenance: {hs_maintenance}")
+    report_labels["calculations"]["Holliday-Segar"]["sick_day"].config(text=f"Sick Day: {hs_sick_day}")
+    report_labels["calculations"]["WHO_REE"].config(text=f"WHO REE: {who_ree}")
 
     return patient_report
 

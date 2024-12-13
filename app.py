@@ -162,52 +162,39 @@ def generate_report(cnx, patient_MRN: int):
         }
     }
 
-    # import patient data, convert to dictionary-------
+    # Import patient data, convert to dictionary
     patient_data = read(cnx, "Patients", where=f"MRN = {patient_MRN}").to_dict()
     for key in patient_data:
         patient_data[key] = patient_data[key][0]
-    
-    # fill report with known data--------------------
+
+    # Fill report with known data
     for key in ["MRN", "DOB", "sex", "weight_kg"]:
         report["header"][key] = patient_data[key]
-    
     report["header"]["DOB"] = dt.datetime.strftime(report["header"]["DOB"], date_format)
-    
-    if patient_data["m_name"] == None:
-        report["header"]["name"] = f"{patient_data['l_name']}, {patient_data['f_name']}"
-    else:
-        report["header"]["name"] = f"{patient_data['l_name']}, {patient_data['f_name']} {patient_data['m_name']}"
+    report["header"]["name"] = f"{patient_data['l_name']}, {patient_data['f_name']}"
 
-    # find secondary data---------------------------
-    # current date
+    # Current date and age
     report["header"]["current_date"] = datetime.now().strftime(date_format)
-    # age
     curr_date = dt.datetime.strptime(report["header"]["current_date"], date_format)
     DOB = dt.datetime.strptime(report["header"]["DOB"], date_format)
     age_dict = calculate_age(DOB, curr_date)
     report["header"]["age_unit"] = age_dict["age_unit"]
     report["header"]["age"] = age_dict["age"]
-        
-    
-    # calculate Holliday-Segar formula
-    hs = 0.0
-    weight = report["header"]["weight_kg"]
 
+    # Holliday-Segar Formula
+    weight = report["header"]["weight_kg"]
     if weight <= 10.0:
         hs = weight * 100.0
     elif weight <= 20.0:
         hs = 1000 + (50 * (weight - 10))
     else:
         hs = 1500 + (20 * (weight - 20))
-
     report["calculations"]["Holliday-Segar"]["maintenance"] = hs
     report["calculations"]["Holliday-Segar"]["sick_day"] = hs * 1.5
 
-    # calculate WHO REE formula
+    # WHO REE Formula
     sex = report["header"]["sex"]
     age = report["header"]["age"]
-    wr = 0.0
-
     if sex == "M":
         if age <= 3:
             wr = (weight * 60.9) - 54
@@ -223,11 +210,9 @@ def generate_report(cnx, patient_MRN: int):
         else:
             wr = (weight * 12.2) + 746
     else:
-        print(f"Unknown sex '{sex}'")
-    
+        wr = 0.0  # Default value for unknown sex
     report["calculations"]["WHO_REE"] = wr
 
-    # return---------------------------------
     return report
 
 def save_report_JSON(report: dict):
