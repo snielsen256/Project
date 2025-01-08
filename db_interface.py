@@ -20,18 +20,26 @@ from tkinter import messagebox
 
 
 # General ----------------------------
-def raw_sql(cnx, query:str):
+def raw_sql(cnx, query: str):
     """
-    Runs MySQL code
-    * Parameters:
-           * cnx - the connection to the database
-           * query:str - the MySQL code
-    * Returns: 
-           * DataFrame - the result of the query
+    Runs a raw SQL query on the database.
+
+    Parameters:
+        cnx: The database connection object.
+        query (str): The SQL query to execute.
+
+    Returns:
+        DataFrame: The result of the query.
+
+    Raises:
+        ValueError: If the database connection is not available.
     """
+    if not cnx:
+        raise ValueError("Database connection is not available.")
+
     with cnx.connect() as connection:
         query_result = pd.read_sql(query, connection)
-    
+
     return query_result
 
 # Database management -----------------------------
@@ -59,12 +67,16 @@ def create_new_database(config):
 
 def start_database(config):
     """
-    Starts the database. Requires the server be started.
+    Initializes and connects to the database using the provided configuration.
 
-    * Parameters:
-           * config: dict
-    * Returns: 
-           * cnx: the connection to the database
+    Parameters:
+        config (dict): The database configuration dictionary.
+
+    Returns:
+        Engine: SQLAlchemy engine object for the database connection.
+
+    Logs:
+        Connection success or failure details.
     """
     from sqlalchemy import create_engine
     from sqlalchemy.exc import SQLAlchemyError, OperationalError
@@ -72,8 +84,6 @@ def start_database(config):
     import logging
     logging.basicConfig()
     logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
-
-    cnx = None
 
     try:
         # Extract database credentials and connection info
@@ -87,49 +97,51 @@ def start_database(config):
         cnx = create_engine(f"mysql+pymysql://{user}:{password}@{host}:{port}/{database}")
         print("Successfully connected to the database")
         return cnx
-    
+
     except OperationalError as err:
-        # Handle specific SQLAlchemy OperationalErrors
         if "Access denied" in str(err):
             show_db_error_popup("access_denied")
         elif "Unknown database" in str(err):
             user_choice = show_db_error_popup("unknown_db")
             if user_choice:
-                create_new_database(config)  # Use config, not cnx, since cnx is None
+                create_new_database(config)
                 print("Creating database")
             else:
                 print("Database creation cancelled")
         else:
             show_db_error_popup("generic", err)
-    
+
     except SQLAlchemyError as err:
-        # Generic SQLAlchemy error handling
         show_db_error_popup("generic", err)
-    
+
     return cnx
 
 def commit_db_changes(cnx, parent_window):
     """
-    Prompts the user to confirm committing database changes and commits them if confirmed.
+    Prompts the user to confirm and commit database changes.
 
-    * Parameters:
-        * cnx - the connection to the database (raw connection or session)
-        * parent_window - the parent of the popup window
-    * Returns: bool - True if committed, False otherwise
+    Parameters:
+        cnx: The database connection object.
+        parent_window: The parent window for the confirmation dialog.
+
+    Returns:
+        bool: True if the changes were committed, False otherwise.
+
+    Raises:
+        ValueError: If the database connection is not available.
     """
-    from GUI import confirm_commit_popup
+    if not cnx:
+        raise ValueError("Database connection is not available. Cannot commit changes.")
 
-    # Call the confirmation popup function
+    from GUI import confirm_commit_popup
     confirm = confirm_commit_popup(parent_window)
 
     if confirm:
         try:
             if isinstance(cnx, Session):
-                # Commit using SQLAlchemy session
                 cnx.commit()
                 print("Changes successfully committed via session.")
             else:
-                # Commit using raw connection
                 with cnx.connect() as connection:
                     connection.commit()
                 print("Changes successfully committed via raw connection.")
@@ -138,31 +150,26 @@ def commit_db_changes(cnx, parent_window):
             print(f"Error committing changes: {e}")
             raise
     else:
-        # User cancels commit
         print("Commit cancelled by the user.")
         return False
 
 
 def close_database(cnx):
     """
-    Closes the connection to the database.
+    Closes the database connection if it exists.
 
-    * Parameters:
-           * cnx - the connection to the database
-    * Returns: none
+    Parameters:
+        cnx: The database connection object.
+
+    Logs:
+        A message indicating whether the connection was closed or absent.
     """
-    # close connection to database
-    """
-    user_input = input("Are you sure you want to close the database? (y/n):")
-    if user_input[:1].lower() == "y":
-        cnx.close()
-        print("Database closed.")
-    else:
-        print("The database remains open.")
-    """
-    
-    if cnx:
-        cnx.dispose()
+    if not cnx:
+        print("No active database connection to close.")
+        return
+
+    cnx.dispose()
+    print("Database connection closed.")
 
 # Database login -------------------------
 def configure_login():
@@ -179,9 +186,12 @@ def load_config():
     * Returns: 
            * config: dict
     """
-
-    with open('config.json') as json_file:
-        config = json.load(json_file)
+    try:
+        with open('config.json') as json_file:
+            config = json.load(json_file)
+    except:
+        config = None
+        print("No config file detected")
     
     return config
 
@@ -202,6 +212,22 @@ def update_config(settings):
 
 # CRUD functions ------------------------   
 def create(cnx, parent_window, table_name: str, content: dict):
+    """
+    Inserts a new entry into the specified table.
+
+    Parameters:
+        cnx: The database connection object.
+        parent_window: The parent window for confirmation dialogs.
+        table_name (str): The name of the table.
+        content (dict): The data to insert as a dictionary.
+
+    Raises:
+        ValueError: If the database connection is not available.
+        Exception: If the insertion fails.
+    """
+    if not cnx:
+        raise ValueError("Database connection is not available. Cannot create entries.")
+
     col_names = ", ".join(f"`{col}`" for col in content.keys())
     placeholders = ", ".join([f":{col}" for col in content.keys()])
 
@@ -212,17 +238,10 @@ def create(cnx, parent_window, table_name: str, content: dict):
 
     try:
         with cnx.connect() as connection:
-            # Debugging: Print query and content
             print(f"Executing query: {query}")
             print(f"With data: {content}")
-            
-            # Execute the insert query
             connection.execute(query, content)
-            
-            # Manually commit the transaction
             connection.commit()
-            
-            # Proceed with commit confirmation
             commit_db_changes(cnx, parent_window)
             print("Entry successfully inserted.")
     except Exception as e:
@@ -230,67 +249,79 @@ def create(cnx, parent_window, table_name: str, content: dict):
         messagebox.showerror("Database Error", f"An error occurred while inserting the entry: {str(e)}")
         raise
 
-def read(cnx, table_name:str, select:str = "*", where:str = "*"):
+def read(cnx, table_name: str, select: str = "*", where: str = "*"):
     """
-    CRUD function. Returns a table's contents
-    * Parameters:
-           * cnx - the connection to the database
-           * table_name: str 
-           * select: str - the MySQL SELECT statement
-           * where: str - the MySQL WHERE statement
-    * Returns: 
-           * DataFrame - the result of the query
+    Reads data from the specified table.
+
+    Parameters:
+        cnx: The database connection object.
+        table_name (str): The name of the table.
+        select (str): The SELECT clause (default: all columns).
+        where (str): The WHERE clause (default: no condition).
+
+    Returns:
+        DataFrame: The result of the query.
+
+    Raises:
+        ValueError: If the database connection is not available.
     """
+    if not cnx:
+        raise ValueError("Database connection is not available. Cannot read entries.")
+
     warnings.filterwarnings('ignore')
-    
+
     query = (f"""
         SELECT 
              {select}
         FROM 
              {table_name}
         """)
-    
-    # add where statement if relevant
-    if where != "*":
-        query = query + f"WHERE {where}"
-    
-    query = query + ";"
 
-    # return
+    if where != "*":
+        query += f"WHERE {where}"
+
+    query += ";"
+
     with cnx.connect() as connection:
         query_result = pd.read_sql(query, connection)
     return query_result
 
+
 def update(cnx, parent_window, table_name: str, id: int, content: dict):
     """
-    Updates an entry in a table.
-    """
-    # Determine the name of the primary key
-    p_key_name = get_primary_key(cnx, table_name)  # Dynamically fetch the primary key column
+    Updates an entry in the specified table.
 
-    # Check for an invalid or empty ID
+    Parameters:
+        cnx: The database connection object.
+        parent_window: The parent window for confirmation dialogs.
+        table_name (str): The name of the table.
+        id (int): The ID of the entry to update.
+        content (dict): The updated data.
+
+    Raises:
+        ValueError: If the database connection is not available or invalid ID.
+        Exception: If the update operation fails.
+    """
+    if not cnx:
+        raise ValueError("Database connection is not available. Cannot update entries.")
+
+    p_key_name = get_primary_key(cnx, table_name)
     if not p_key_name or id == -1:
         raise ValueError("Invalid table or ID provided for update.")
 
-    # Convert dict to the SQL SET statement format
     set_statement = dict_to_string_Update(content)
 
-    # Define the query
     query = text(f"""
         UPDATE {table_name} 
         SET {set_statement} 
         WHERE {p_key_name} = :id
     """)
 
-    # Execute the update query
     try:
         with cnx.connect() as connection:
-            # Start a transaction
-            connection.execution_options(isolation_level="AUTOCOMMIT")  # Ensures immediate commit
+            connection.execution_options(isolation_level="AUTOCOMMIT")
             print(f"Executing query: {query}, with ID: {id} and content: {content}")
-            connection.execute(query, {"id": id})  # Pass parameters to prevent SQL injection
-
-            # Explicitly commit changes
+            connection.execute(query, {"id": id})
             connection.commit()
             print(f"Entry with ID {id} updated successfully in table {table_name}.")
     except Exception as e:
@@ -298,61 +329,64 @@ def update(cnx, parent_window, table_name: str, id: int, content: dict):
         raise
 
 def delete(cnx, parent_window, table_name: str, entry_id: int, primary_key: str):
+    """
+    Deletes an entry from the specified table.
+
+    Parameters:
+        cnx: The database connection object.
+        parent_window: The parent window for confirmation dialogs.
+        table_name (str): The name of the table.
+        entry_id (int): The ID of the entry to delete.
+        primary_key (str): The primary key column name.
+
+    Raises:
+        ValueError: If the database connection is not available or entry does not exist.
+        Exception: If the deletion operation fails.
+    """
+    if not cnx:
+        raise ValueError("Database connection is not available. Cannot delete entries.")
+
     delete_query = text(f"""
         DELETE FROM {table_name} 
         WHERE {primary_key} = :entry_id;
     """)
 
-    verify_query = text(f"""
-        SELECT 1 FROM {table_name} 
-        WHERE {primary_key} = :entry_id;
-    """)
-
     try:
         with cnx.connect() as connection:
-            connection.execution_options(isolation_level="AUTOCOMMIT")  # Ensure immediate commit
-
-            # Debugging: Log queries and parameters
+            connection.execution_options(isolation_level="AUTOCOMMIT")
             print(f"Executing DELETE query: {delete_query}, Parameters: {{entry_id: {entry_id}}}")
             result = connection.execute(delete_query, {"entry_id": entry_id})
-            print(f"Rows affected by DELETE: {result.rowcount}")
 
             if result.rowcount == 0:
                 raise ValueError(f"Entry with ID {entry_id} does not exist in {table_name}.")
 
-            # Verify deletion
-            print(f"Executing VERIFY query: {verify_query}, Parameters: {{entry_id: {entry_id}}}")
-            verify_result = connection.execute(verify_query, {"entry_id": entry_id}).fetchone()
-            print(f"Verification result: {verify_result}")
-
-            if verify_result is None:
-                # Successful deletion
-                if commit_db_changes(cnx, parent_window):
-                    print(f"Entry {entry_id} successfully deleted from {table_name}.")
-                    messagebox.showinfo("Success", f"Entry with ID {entry_id} deleted successfully.")
-                else:
-                    print("Deletion not committed by user.")
-            else:
-                raise ValueError(f"Failed to delete entry with ID {entry_id} from {table_name}.")
-
+            if commit_db_changes(cnx, parent_window):
+                print(f"Entry {entry_id} successfully deleted from {table_name}.")
+                messagebox.showinfo("Success", f"Entry with ID {entry_id} deleted successfully.")
     except Exception as e:
         print(f"Error during delete operation: {e}")
         messagebox.showerror("Error", f"Failed to delete entry: {str(e)}")
 
 
+
 # Supporting functions ------------------------------
 def get_table_names(cnx, config):
     """
-    Gets the table names, excluding connective tables.
+    Retrieves the names of tables in the database.
 
-    * Parameters:
-           * cnx - the connection to the database
-           * config - login information
-    * Returns: 
-           * DataFrame - the result of the query
+    Parameters:
+        cnx: The database connection object.
+        config (dict): The database configuration dictionary.
+
+    Returns:
+        DataFrame: A DataFrame containing the table names.
+
+    Raises:
+        ValueError: If the database connection is not available.
     """
+    if not cnx:
+        raise ValueError("Database connection is not available. Cannot retrieve table names.")
 
-    # define query
     query = (f"""
         SELECT 
              table_name
@@ -362,8 +396,7 @@ def get_table_names(cnx, config):
              table_schema = '{config['database']}'
              AND table_name NOT LIKE "%has%";
         """)
-    
-    # query the database
+
     warnings.filterwarnings('ignore')
     with cnx.connect() as connection:
         query_result = pd.read_sql(query, connection)

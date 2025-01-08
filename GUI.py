@@ -44,17 +44,19 @@ class MultiPageApp(tk.Tk):
         self.show_frame("HomePage")
 
         # Notify the user if running in limited mode
-        if not self.cnx:
-            self.show_limited_mode_message()
+        if self.cnx is None:
+            show_limited_mode_message() 
 
-    def show_limited_mode_message(self):
+    def handle_access_database(self, controller, source, destination):
         """
-        Notify the user that the application is running without a database connection.
+        Checks if database is accessible, shows error if it is not.
         """
-        messagebox.showwarning(
-            "Limited Mode",
-            "Can't connect to the database. Reports can still be made, but autofill is disabled."
-        )
+        try:
+            self.cnx
+            controller.show_frame(destination)
+        except:
+            controller.show_frame(source)
+            show_limited_mode_message()
 
     def show_frame(self, page_name):
         """
@@ -72,6 +74,7 @@ class MultiPageApp(tk.Tk):
 class HomePage(ttk.Frame):
     def __init__(self, parent, controller, cnx):
         super().__init__(parent)
+        self.cnx = cnx
         font_type = "Helvetica"
 
         # Configure the grid layout for the frame
@@ -131,18 +134,21 @@ class HomePage(ttk.Frame):
         access_db_button = ttk.Button(
             button_frame,
             text="Access Database",
-            command=lambda: controller.show_frame("PageDatabase"),
+            command=lambda: controller.handle_access_database(controller, source="HomePage", destination="PageDatabase"),
             style="Menu.TButton"
         )
+
         generate_report_button = ttk.Button(
             button_frame,
             text="Generate Report",
-            command=lambda: controller.show_frame("PageReportEditing"),
+            command= lambda: controller.show_frame("PageReportEditing"),
             style="Menu.TButton"
         )
 
         access_db_button.pack(pady=5)
         generate_report_button.pack(pady=5)
+        
+            
        
 class PageDatabase(ttk.Frame):
     def __init__(self, parent, controller, cnx):
@@ -1068,7 +1074,16 @@ def save_info_popup(parent_window=None, info_text=""):
         * bool - True if confirmed, False otherwise
     """
     return messagebox.showinfo("Saved", info_text, parent=parent_window)
-    
+
+def show_limited_mode_message():
+            """
+            Notify the user that the application is running without a database connection.
+            """
+            messagebox.showwarning(
+                "Limited Mode",
+                "Can't connect to the database. Reports can still be made, but autofill is disabled."
+            )
+
 def show_db_error_popup(error_type, err=None):
     """
     Shows GUI popups based on the error type during database connection.
