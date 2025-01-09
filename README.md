@@ -7,9 +7,19 @@
 * Optionally autofill patient data from database
 
 ## Using the Program
-* The runnable program is the .exe file. If you want to use the program, this is the only file that is absolutely necessary to download.
-* If you choose to use a database, download db_setup.sql as well. It contains the structure needed to set up the database. MySQL Workbench can help with this if you want this database on your PC.
-* Wherever you choose to set up the database, you can connect to it on the "Settings" page of Supplicore.
+1. Download supplicore.exe and db_setup.sql, the latter contains the structure needed to set up the database. MySQL Workbench can help with this if you want this database on your PC.
+3. Wherever you choose to set up the database, you edit the connection on the "Settings" page, however you must set up the database login information before the program can be run for the first time. Create a file called "config.json" and fill it with the code below. 
+```
+{
+ "user": "***",
+ "password": "***",
+ "host": "***",
+ "port": ***,
+ "database": "supplicore_db",
+ "raise_on_warnings": true
+}
+```
+4. Replace the *** with relevant information. Take note that numbers values aren't in quotation marks. If you are running the database on the same computer as the program, user is "root", host is "localhost" and the port is likely 3306. The password is defined by you when you set up the database.
 
 ## Files
 * app.py - The main file
